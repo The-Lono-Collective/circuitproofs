@@ -321,13 +321,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **PyTorch Team**: For the deep learning framework
 - **Contributors**: All who have helped improve this project
 
-## Support
-
-- **Issues**: [GitHub Issues](https://github.com/tektonics/leanverifier/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/tektonics/leanverifier/discussions)
-- **Documentation**: [docs/](docs/)
-
----
 
 ## Attribution
 
