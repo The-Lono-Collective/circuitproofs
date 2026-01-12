@@ -25,10 +25,7 @@ RUN pip install --no-cache-dir -r translator/requirements.txt
 RUN pip install --no-cache-dir flask
 RUN pip install --no-cache-dir graphviz
 
-# 7. Switch to your Lean project folder
-WORKDIR /app/lean
-
-# 8. Build with Lake (which will clone mathlib if needed)
+# 7. Build with Lake from project root (lakefile.lean is here, with srcDir := "lean")
 RUN lake build
 
 # 9. Expose port 5000 for Flask
