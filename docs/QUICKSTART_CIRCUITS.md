@@ -271,7 +271,7 @@ lake build --verbose
 ## Getting Help
 
 - **Documentation**: [docs/CERTIFIED_CIRCUITS.md](CERTIFIED_CIRCUITS.md)
-- **Issues**: [GitHub Issues](https://github.com/yourusername/leanverifier/issues)
+- **Issues**: [GitHub Issues](https://github.com/tektonics/circuitproofs/issues)
 - **Examples**: See `examples/` directory for more code
 
 ## Key Takeaways

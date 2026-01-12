@@ -1,6 +1,6 @@
-# FormalVerifML User Guide
+# LeanVerifier User Guide
 
-> **Complete guide to using FormalVerifML for formal verification of machine learning models**
+> **Complete guide to using LeanVerifier for formal verification of machine learning models**
 
 ## Table of Contents
 
@@ -16,7 +16,7 @@
 
 ## Introduction
 
-FormalVerifML is a comprehensive framework for formally verifying machine learning models. This guide will walk you through the complete process from model export to verification results.
+LeanVerifier is a comprehensive framework for formally verifying machine learning models. This guide will walk you through the complete process from model export to verification results.
 
 ### What You'll Learn
 
@@ -38,12 +38,12 @@ FormalVerifML is a comprehensive framework for formally verifying machine learni
 
 ```bash
 # Clone the repository
-git clone https://github.com/fraware/formal_verif_ml.git
-cd formal_verif_ml
+git clone https://github.com/tektonics/circuitproofs.git
+cd circuitproofs
 
 # Build and run with Docker
-docker build -t formalverifml .
-docker run -p 5000:5000 -v $(pwd)/models:/app/models formalverifml
+docker build -t circuitproofs .
+docker run -p 5000:5000 -v $(pwd)/models:/app/models circuitproofs
 
 # Access the web interface
 open http://localhost:5000
@@ -53,8 +53,8 @@ open http://localhost:5000
 
 ```bash
 # Clone the repository
-git clone https://github.com/fraware/formal_verif_ml.git
-cd formal_verif_ml
+git clone https://github.com/tektonics/circuitproofs.git
+cd circuitproofs
 
 # Install Python dependencies
 pip install -r translator/requirements.txt
@@ -153,7 +153,7 @@ python translator/export_from_pytorch.py --config export_config.json
 # Convert JSON model to Lean definitions
 python translator/generate_lean_model.py \
     --model_json model.json \
-    --output_lean lean/FormalVerifML/generated/my_model.lean
+    --output_lean lean/LeanVerifier/generated/my_model.lean
 ```
 
 ### Step 2: Run Verification
@@ -163,7 +163,7 @@ python translator/generate_lean_model.py \
 lake build
 
 # Run verification with specific properties
-lake exe FormalVerifML --properties robustness,fairness
+lake exe LeanVerifier --properties robustness,fairness
 ```
 
 ### Step 3: View Results
@@ -260,7 +260,7 @@ python translator/export_from_pytorch.py --model_path model.pth --output_path mo
 python translator/generate_lean_model.py --model_json model.json --output_lean model.lean
 
 # Run verification
-lake build && lake exe FormalVerifML
+lake build && lake exe LeanVerifier
 
 # Run tests
 python translator/run_comprehensive_tests.py
@@ -480,11 +480,11 @@ python translator/performance_report.py --output performance_report.json
 
 ### General Questions
 
-**Q: What types of models does FormalVerifML support?**
-A: FormalVerifML supports transformers, neural networks, vision models, decision trees, and linear models. See the [Model Support](#supported-model-types) section for details.
+**Q: What types of models does LeanVerifier support?**
+A: LeanVerifier supports transformers, neural networks, vision models, decision trees, and linear models. See the [Model Support](#supported-model-types) section for details.
 
 **Q: How accurate are the verification results?**
-A: FormalVerifML uses mathematical proofs, so results are 100% accurate when verification succeeds. The framework provides formal guarantees.
+A: LeanVerifier uses mathematical proofs, so results are 100% accurate when verification succeeds. The framework provides formal guarantees.
 
 **Q: Can I verify my own custom models?**
 A: Yes! Export your model to JSON format and use the standard verification process. See [Model Export](#model-export) for details.
@@ -509,7 +509,7 @@ A: Enable multi-user mode and create user accounts. See [Enterprise Features](#e
 A: Use the `--audit_logging` flag when starting the web interface. See [Audit Logging](#audit-logging) for details.
 
 **Q: Can I integrate with existing CI/CD pipelines?**
-A: Yes! FormalVerifML provides command-line interfaces that integrate with any CI/CD system.
+A: Yes! LeanVerifier provides command-line interfaces that integrate with any CI/CD system.
 
 ### Support
 
@@ -524,4 +524,4 @@ A: Yes! See the [Contributing Guide](../CONTRIBUTING.md) for details.
 
 ---
 
-**Need more help?** Check our [Documentation](../docs/) or [GitHub Issues](https://github.com/fraware/formal_verif_ml/issues).
+**Need more help?** Check our [Documentation](../docs/) or [GitHub Issues](https://github.com/tektonics/circuitproofs/issues).

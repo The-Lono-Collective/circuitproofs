@@ -1,6 +1,6 @@
-# 🤝 Contributing to FormalVerifML
+# 🤝 Contributing to LeanVerifier
 
-Thank you for your interest in contributing to FormalVerifML! This document provides comprehensive guidelines for contributing to the project.
+Thank you for your interest in contributing to LeanVerifier! This document provides comprehensive guidelines for contributing to the project.
 
 ## 📋 Table of Contents
 
@@ -30,12 +30,12 @@ Before contributing, ensure you have:
 1. **Fork the repository** on GitHub
 2. **Clone your fork**:
    ```bash
-   git clone https://github.com/your-username/formal_verif_ml.git
-   cd formal_verif_ml
+   git clone https://github.com/your-username/circuitproofs.git
+   cd circuitproofs
    ```
 3. **Add upstream remote**:
    ```bash
-   git remote add upstream https://github.com/fraware/formal_verif_ml.git
+   git remote add upstream https://github.com/tektonics/circuitproofs.git
    ```
 4. **Create a feature branch**:
    ```bash
@@ -61,7 +61,7 @@ pre-commit install
 lake build
 
 # Run tests to verify setup
-python -m pytest tests/
+python translator/run_comprehensive_tests.py
 ```
 
 ### IDE Configuration
@@ -84,7 +84,7 @@ python -m pytest tests/
      "python.linting.pylintEnabled": true,
      "python.formatting.provider": "black",
      "python.testing.pytestEnabled": true,
-     "python.testing.pytestArgs": ["tests/"],
+     "python.testing.pytestArgs": ["translator/"],
      "editor.formatOnSave": true,
      "editor.codeActionsOnSave": {
        "source.organizeImports": true
@@ -681,8 +681,8 @@ Contributors are recognized through:
 
 ### Support Channels
 
-- **GitHub Issues**: [Create an issue](https://github.com/fraware/formal_verif_ml/issues)
-- **GitHub Discussions**: [Start a discussion](https://github.com/fraware/formal_verif_ml/discussions)
+- **GitHub Issues**: [Create an issue](https://github.com/tektonics/circuitproofs/issues)
+- **GitHub Discussions**: [Start a discussion](https://github.com/tektonics/circuitproofs/discussions)
 - **Discord**: Join our community server
 - **Email**: Contact the maintainers directly
 
@@ -697,6 +697,6 @@ New contributors can:
 
 ---
 
-**Thank you for contributing to FormalVerifML!** 🚀
+**Thank you for contributing to LeanVerifier!** 🚀
 
 Your contributions help make formal verification of machine learning models more accessible and reliable for everyone.

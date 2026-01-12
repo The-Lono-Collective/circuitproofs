@@ -87,7 +87,7 @@ See [Certified Circuits Documentation](docs/CERTIFIED_CIRCUITS.md) for details.
 ## Architecture
 
 ```
-leanverifier/
+circuitproofs/
 ├── lean/                          # Lean 4 formal verification code
 │   ├── FormalVerifML/
 │   │   ├── base/                  # Core definitions and properties
@@ -133,12 +133,12 @@ leanverifier/
 
 ```bash
 # Clone the repository
-git clone https://github.com/tektonics/leanverifier.git
-cd leanverifier
+git clone https://github.com/tektonics/circuitproofs.git
+cd circuitproofs
 
 # Build and run with Docker
-docker build -t leanverifier .
-docker run -p 5000:5000 -v $(pwd)/models:/app/models leanverifier
+docker build -t circuitproofs .
+docker run -p 5000:5000 -v $(pwd)/models:/app/models circuitproofs
 
 # Access the web interface
 open http://localhost:5000
@@ -148,8 +148,8 @@ open http://localhost:5000
 
 ```bash
 # Clone the repository
-git clone https://github.com/tektonics/leanverifier.git
-cd leanverifier
+git clone https://github.com/tektonics/circuitproofs.git
+cd circuitproofs
 
 # Install Python dependencies
 pip install -r translator/requirements.txt
@@ -289,8 +289,8 @@ We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.
 
 ```bash
 # Clone and setup development environment
-git clone https://github.com/tektonics/leanverifier.git
-cd leanverifier
+git clone https://github.com/tektonics/circuitproofs.git
+cd circuitproofs
 
 # Install development dependencies
 pip install -r translator/requirements.txt
@@ -300,7 +300,7 @@ pip install -r requirements-dev.txt
 pre-commit install
 
 # Run tests
-python -m pytest tests/
+python translator/run_comprehensive_tests.py
 ```
 
 ### Code Standards
@@ -321,13 +321,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **PyTorch Team**: For the deep learning framework
 - **Contributors**: All who have helped improve this project
 
-## Support
-
-- **Issues**: [GitHub Issues](https://github.com/tektonics/leanverifier/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/tektonics/leanverifier/discussions)
-- **Documentation**: [docs/](docs/)
-
----
 
 ## Attribution
 

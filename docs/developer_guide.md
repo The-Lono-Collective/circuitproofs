@@ -1,6 +1,6 @@
-# FormalVerifML Developer Guide
+# LeanVerifier Developer Guide
 
-> **Comprehensive guide for developers extending and contributing to the FormalVerifML framework**
+> **Comprehensive guide for developers extending and contributing to the LeanVerifier framework**
 
 ## Table of Contents
 
@@ -17,7 +17,7 @@
 
 ## Introduction
 
-This guide is designed for developers who want to extend, contribute to, or understand the internal architecture of the FormalVerifML framework. It provides detailed information about the codebase structure, development practices, and extension points.
+This guide is designed for developers who want to extend, contribute to, or understand the internal architecture of the LeanVerifier framework. It provides detailed information about the codebase structure, development practices, and extension points.
 
 ### Target Audience
 
@@ -69,7 +69,7 @@ This guide is designed for developers who want to extend, contribute to, or unde
 
 - **Purpose**: Execute formal proofs of model properties
 - **Components**: Lean 4 definitions, SMT integration, proof tactics
-- **Key Files**: `lean/FormalVerifML/base/`, `lean/FormalVerifML/proofs/`
+- **Key Files**: `lean/LeanVerifier/base/`, `lean/LeanVerifier/proofs/`
 
 #### 3. **Web Interface**
 
@@ -81,43 +81,39 @@ This guide is designed for developers who want to extend, contribute to, or unde
 
 - **Purpose**: Ensure correctness and performance
 - **Components**: Unit tests, integration tests, performance benchmarks
-- **Key Files**: `translator/test_*.py`, `tests/`
+- **Key Files**: `translator/test_*.py`, `translator/run_comprehensive_tests.py`
 
 ## Code Organization
 
 ### Project Structure
 
 ```
-FormalVerifML/
+circuitproofs/
 ├── 📁 lean/                          # Lean 4 formal verification code
 │   └── 📁 FormalVerifML/
 │       ├── 📁 base/                  # Core definitions and properties
+│       │   ├── 📄 circuit_models.lean        # Circuit definitions
 │       │   ├── 📄 definitions.lean           # Basic ML model structures
 │       │   ├── 📄 advanced_models.lean       # Transformer and advanced models
 │       │   ├── 📄 ml_properties.lean         # Verification property definitions
-│       │   ├── 📄 advanced_tactics.lean      # Custom proof tactics
-│       │   ├── 📄 symbolic_models.lean       # Symbolic reasoning support
 │       │   ├── 📄 memory_optimized_models.lean # Memory optimization
 │       │   ├── 📄 smt_integration.lean       # SMT solver integration
-│       │   ├── 📄 large_scale_models.lean    # 100M+ parameter support
 │       │   ├── 📄 vision_models.lean         # Vision transformer support
 │       │   ├── 📄 distributed_verification.lean # Distributed processing
 │       │   └── 📄 enterprise_features.lean   # Enterprise features
 │       ├── 📁 generated/             # Auto-generated model definitions
-│       │   ├── 📄 example_model.lean         # Sample neural network
-│       │   ├── 📄 another_nn_model.lean      # Additional neural network
-│       │   ├── 📄 log_reg_model.lean         # Logistic regression
-│       │   ├── 📄 decision_tree_model.lean   # Decision tree
-│       │   └── 📄 sample_transformer_model.lean # Transformer example
-│       ├── 📁 proofs/                # Verification proof scripts
-│       │   ├── 📄 example_robustness_proof.lean
-│       │   ├── 📄 example_fairness_proof.lean
-│       │   ├── 📄 extended_robustness_proof.lean
-│       │   ├── 📄 extended_fairness_proof.lean
-│       │   ├── 📄 decision_tree_proof.lean
-│       │   └── 📄 comprehensive_test_suite.lean
-│       └── 📄 formal_verif_ml.lean   # Main entry point
+│       │   └── 📄 *.lean                     # Generated model definitions
+│       └── 📁 proofs/                # Verification proof scripts
+│           ├── 📄 circuit_proofs.lean        # Circuit verification proofs
+│           ├── 📄 example_robustness_proof.lean
+│           ├── 📄 example_fairness_proof.lean
+│           └── 📄 comprehensive_test_suite.lean
+├── 📁 extraction/                    # Circuit extraction module
+│   ├── 📄 circuit_extractor.py      # BlockCert-style extraction
+│   ├── 📄 example_extraction.py     # Example usage
+│   └── 📄 requirements.txt          # Extraction dependencies
 ├── 📁 translator/                    # Model translation and testing
+│   ├── 📄 circuit_to_lean.py        # Circuit to Lean translation
 │   ├── 📄 export_from_pytorch.py    # PyTorch model export
 │   ├── 📄 generate_lean_model.py    # JSON to Lean code generation
 │   ├── 📄 run_comprehensive_tests.py # Comprehensive test runner
@@ -125,24 +121,27 @@ FormalVerifML/
 │   ├── 📄 test_enterprise_features.py # Enterprise feature testing
 │   ├── 📄 requirements.txt          # Python dependencies
 │   └── 📄 *.json                    # Sample model definitions
+├── 📁 examples/                      # End-to-end examples
+│   └── 📄 end_to_end_pipeline.py    # Complete circuit pipeline demo
 ├── 📁 webapp/                       # Web interface and visualization
 │   ├── 📄 app.py                    # Flask application
 │   ├── 📁 templates/                # HTML templates
-│   │   ├── 📄 index.html            # Main interface
-│   │   └── 📄 model_visualization.html # Model visualization
 │   └── 📁 static/                   # Static assets
 ├── 📁 docs/                         # Documentation
+│   ├── 📄 CERTIFIED_CIRCUITS.md     # Circuits documentation
+│   ├── 📄 QUICKSTART_CIRCUITS.md    # Quick start guide
 │   ├── 📄 user_guide.md             # User documentation
-│   ├── 📄 developer_guide.md        # This file
-│   └── 📄 improvement_roadmap.md    # Development roadmap
+│   └── 📄 developer_guide.md        # This file
 ├── 📁 .github/                      # CI/CD and workflows
 │   └── 📁 workflows/
 │       └── 📄 lean_ci.yml           # GitHub Actions CI
 ├── 📄 lakefile.lean                 # Lean build configuration
 ├── 📄 lake-manifest.json            # Lean dependencies
-├── 📄 lean-toolchain                # Lean version specification
+├── 📄 lean-toolchain                # Lean version specification (v4.18.0-rc1)
 ├── 📄 Dockerfile                    # Docker container definition
-├── 📄 requirements.txt              # Python dependencies
+├── 📄 requirements-dev.txt          # Development dependencies
+├── 📄 CONTRIBUTING.md               # Contribution guidelines
+├── 📄 CHANGELOG_CIRCUITS.md         # Circuit feature changelog
 └── 📄 README.md                     # Project overview
 ```
 
@@ -195,8 +194,8 @@ sudo sh get-docker.sh
 
 ```bash
 # Clone the repository
-git clone https://github.com/fraware/formal_verif_ml.git
-cd formal_verif_ml
+git clone https://github.com/tektonics/circuitproofs.git
+cd circuitproofs
 
 # Create virtual environment
 python3.9 -m venv venv
@@ -213,7 +212,7 @@ pre-commit install
 lake build
 
 # Run tests
-python -m pytest tests/
+python translator/run_comprehensive_tests.py
 ```
 
 ### IDE Configuration
@@ -228,7 +227,7 @@ python -m pytest tests/
   "python.linting.pylintEnabled": true,
   "python.formatting.provider": "black",
   "python.testing.pytestEnabled": true,
-  "python.testing.pytestArgs": ["tests/"],
+  "python.testing.pytestArgs": ["translator/"],
   "lean4.serverEnv": {
     "LEAN_SRC_PATH": "${workspaceFolder}/lean"
   }
@@ -258,7 +257,7 @@ docker run -it --rm \
 # Inside container
 cd /app
 lake build
-python -m pytest tests/
+python translator/run_comprehensive_tests.py
 ```
 
 ## 🔧 Extending the Framework
@@ -268,7 +267,7 @@ python -m pytest tests/
 #### 1. **Define Model Structure**
 
 ```lean
--- lean/FormalVerifML/base/definitions.lean
+-- lean/LeanVerifier/base/definitions.lean
 
 /--
 New model type structure.
@@ -314,8 +313,8 @@ def generate_new_model_code(model_json) -> str:
     output_dim = model_json["output_dim"]
 
     lean_lines = []
-    lean_lines.append("import FormalVerifML.base.definitions")
-    lean_lines.append("namespace FormalVerifML")
+    lean_lines.append("import LeanVerifier.base.definitions")
+    lean_lines.append("namespace LeanVerifier")
     lean_lines.append(f"-- Auto-generated NewModelType definition for {name}\n")
 
     # Generate model definition
@@ -324,7 +323,7 @@ def generate_new_model_code(model_json) -> str:
     lean_lines.append(f"    outputDim := {output_dim},")
     # Add other fields...
     lean_lines.append("  }")
-    lean_lines.append("end FormalVerifML")
+    lean_lines.append("end LeanVerifier")
 
     return "\n".join(lean_lines)
 ```
@@ -352,7 +351,7 @@ def extract_new_model(model: nn.Module) -> Dict[str, Any]:
 #### 1. **Define Property**
 
 ```lean
--- lean/FormalVerifML/base/ml_properties.lean
+-- lean/LeanVerifier/base/ml_properties.lean
 
 /--
 New verification property.
@@ -366,7 +365,7 @@ def newProperty (model : ModelType) (ε δ : Float) : Prop :=
 #### 2. **Implement Verification Logic**
 
 ```lean
--- lean/FormalVerifML/proofs/new_property_proof.lean
+-- lean/LeanVerifier/proofs/new_property_proof.lean
 
 /--
 Proof that a specific model satisfies the new property.
@@ -400,7 +399,7 @@ def test_new_property():
 #### 1. **Define Custom Tactic**
 
 ```lean
--- lean/FormalVerifML/base/advanced_tactics.lean
+-- lean/LeanVerifier/base/advanced_tactics.lean
 
 /--
 Custom tactic for specific proof patterns.
@@ -529,50 +528,46 @@ def test_model_robustness(input_data):
 
 ### Test Organization
 
+Tests are located in the `translator/` directory:
+
 ```
-tests/
-├── 📁 unit/                    # Unit tests
-│   ├── 📁 translator/          # Translator unit tests
-│   ├── 📁 webapp/              # Web interface unit tests
-│   └── 📁 lean/                # Lean code unit tests
-├── 📁 integration/             # Integration tests
-│   ├── 📄 test_pipeline.py     # End-to-end pipeline
-│   ├── 📄 test_api.py          # API integration
-│   └── 📄 test_web_interface.py # Web interface integration
-├── 📁 performance/             # Performance tests
-│   ├── 📄 test_memory.py       # Memory usage tests
-│   ├── 📄 test_speed.py        # Speed tests
-│   └── 📄 test_scalability.py  # Scalability tests
-├── 📁 property/                # Property-based tests
-│   ├── 📄 test_robustness.py   # Robustness properties
-│   ├── 📄 test_fairness.py     # Fairness properties
-│   └── 📄 test_safety.py       # Safety properties
-├── 📁 fixtures/                # Test fixtures
-│   ├── 📄 models.py            # Model fixtures
-│   ├── 📄 data.py              # Data fixtures
-│   └── 📄 configs.py           # Configuration fixtures
-└── 📄 conftest.py              # pytest configuration
+translator/
+├── 📄 run_comprehensive_tests.py   # Main test runner
+├── 📄 test_huggingface_models.py   # HuggingFace model tests
+├── 📄 test_enterprise_features.py  # Enterprise feature tests
+├── 📄 export_from_pytorch.py       # PyTorch export (testable)
+├── 📄 generate_lean_model.py       # Lean generation (testable)
+├── 📄 circuit_to_lean.py           # Circuit translation (testable)
+└── 📄 *.json                       # Test model definitions
+```
+
+Additional test artifacts are in the root directory:
+```
+circuitproofs/
+├── 📄 test_results_huggingface.json    # HuggingFace test results
+├── 📄 test_results_vision_models.json  # Vision model test results
+├── 📄 test_results_large_models.json   # Large model test results
+├── 📄 test_results_enterprise.json     # Enterprise test results
+└── 📄 test_report.txt                  # Test report
 ```
 
 ### Running Tests
 
 ```bash
-# Run all tests
-python -m pytest tests/
+# Run comprehensive test suite
+python translator/run_comprehensive_tests.py
 
-# Run specific test categories
-python -m pytest tests/unit/
-python -m pytest tests/integration/
-python -m pytest tests/performance/
+# Run HuggingFace model tests
+python translator/test_huggingface_models.py
+
+# Run enterprise feature tests
+python translator/test_enterprise_features.py
+
+# Run with pytest (if pytest is installed)
+python -m pytest translator/ -v
 
 # Run with coverage
-python -m pytest tests/ --cov=translator --cov=webapp --cov-report=html
-
-# Run performance tests
-python -m pytest tests/performance/ --benchmark-only
-
-# Run property tests
-python -m pytest tests/property/ --hypothesis-profile=ci
+python -m pytest translator/ --cov=translator --cov=webapp --cov-report=html
 ```
 
 ## Code Standards
@@ -970,7 +965,7 @@ jobs:
           pip install -r translator/requirements.txt
       - name: Run tests
         run: |
-          python -m pytest tests/
+          python translator/run_comprehensive_tests.py
 
   deploy:
     needs: test
@@ -994,11 +989,11 @@ jobs:
 ```bash
 # Fork the repository on GitHub
 # Clone your fork
-git clone https://github.com/your-username/formal_verif_ml.git
-cd formal_verif_ml
+git clone https://github.com/your-username/circuitproofs.git
+cd circuitproofs
 
 # Add upstream remote
-git remote add upstream https://github.com/fraware/formal_verif_ml.git
+git remote add upstream https://github.com/tektonics/circuitproofs.git
 ```
 
 #### 2. **Create Feature Branch**
@@ -1112,10 +1107,10 @@ lake build
 
 #### 2. **Community**
 
-- [GitHub Issues](https://github.com/fraware/formal_verif_ml/issues)
-- [GitHub Discussions](https://github.com/fraware/formal_verif_ml/discussions)
+- [GitHub Issues](https://github.com/tektonics/circuitproofs/issues)
+- [GitHub Discussions](https://github.com/tektonics/circuitproofs/discussions)
 - [Discord Server](https://discord.gg/formalverifml)
 
 ---
 
-**Ready to contribute?** Start with a [good first issue](https://github.com/fraware/formal_verif_ml/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22) or check our [contributing guidelines](CONTRIBUTING.md).
+**Ready to contribute?** Start with a [good first issue](https://github.com/tektonics/circuitproofs/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22) or check our [contributing guidelines](CONTRIBUTING.md).

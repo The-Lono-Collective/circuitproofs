@@ -129,11 +129,11 @@ theorem circuit_certification
 
 ```bash
 # Clone repository
-git clone https://github.com/yourusername/leanverifier.git
-cd leanverifier
+git clone https://github.com/tektonics/circuitproofs.git
+cd circuitproofs
 
 # Install Python dependencies
-pip install -r requirements.txt
+pip install -r translator/requirements.txt
 
 # Build Lean project
 lake build
@@ -417,11 +417,11 @@ def distributedProof := distributeVerification circuit property 4
 If you use this system in your research, please cite:
 
 ```bibtex
-@software{certified_circuits_2024,
+@software{certified_circuits_2026,
   title={Certified Proof-Carrying Circuits: Bridging Interpretability and Formal Verification},
-  author={Your Name},
-  year={2024},
-  url={https://github.com/yourusername/leanverifier}
+  author={tektonics},
+  year={2026},
+  url={https://github.com/tektonics/circuitproofs}
 }
 ```
 
@@ -448,7 +448,7 @@ MIT License - See [LICENSE](../LICENSE) for details
 
 ## Contact
 
-For questions or issues, please open a GitHub issue or contact [your-email@example.com](mailto:your-email@example.com).
+For questions or issues, please open a [GitHub issue](https://github.com/tektonics/circuitproofs/issues).
 
 ---
 
