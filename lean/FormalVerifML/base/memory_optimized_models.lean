@@ -6,7 +6,7 @@ namespace FormalVerifML
 /--
 Memory-optimized transformer structure that uses sparse attention and gradient checkpointing.
 This version is designed to handle large models (100M+ parameters) efficiently.
---/
+-/
 structure MemoryOptimizedTransformer where
   -- Core dimensions
   dModel : Nat              -- Hidden dimension
@@ -36,7 +36,7 @@ structure MemoryOptimizedTransformer where
 /--
 Sparse attention pattern for memory efficiency.
 Only attends to a subset of positions to reduce memory usage.
---/
+-/
 def sparseAttentionPattern (seqLen : Nat) (chunkSize : Nat) : Array (Array Bool) :=
   let mutable pattern := Array.mkEmpty seqLen
   for i in List.range seqLen do
@@ -56,7 +56,7 @@ def sparseAttentionPattern (seqLen : Nat) (chunkSize : Nat) : Array (Array Bool)
 
 /--
 Memory-efficient attention computation with sparse patterns.
---/
+-/
 def computeSparseAttention
   (head : AttentionHead)
   (x : Array (Array Float))
@@ -91,7 +91,7 @@ def computeSparseAttention
 
 /--
 Process sequence in chunks to reduce memory usage.
---/
+-/
 def processInChunks
   (f : Array (Array Float) → Array (Array Float))
   (x : Array (Array Float))
@@ -109,7 +109,7 @@ def processInChunks
 
 /--
 Memory-efficient transformer layer with optional optimizations.
---/
+-/
 def applyMemoryOptimizedLayer
   (layerIdx : Nat)
   (heads : Array AttentionHead)
@@ -140,7 +140,7 @@ def applyMemoryOptimizedLayer
 
 /--
 Memory-optimized transformer evaluation.
---/
+-/
 def evalMemoryOptimizedTransformer (tr : MemoryOptimizedTransformer) (tokenIds : Array Nat) : Array Float :=
   -- Check memory constraints
   let estimatedMemory := tr.vocabSize * tr.dModel * 4  -- Rough estimate in bytes
@@ -184,7 +184,7 @@ def evalMemoryOptimizedTransformer (tr : MemoryOptimizedTransformer) (tokenIds :
 
 /--
 Convert regular transformer to memory-optimized version.
---/
+-/
 def toMemoryOptimized (tr : Transformer) (useSparse : Bool := true) (chunkSize : Nat := 64) (maxMemoryMB : Nat := 8192) : MemoryOptimizedTransformer :=
   { dModel := tr.dModel,
     numHeads := tr.numHeads,
@@ -206,7 +206,7 @@ def toMemoryOptimized (tr : Transformer) (useSparse : Bool := true) (chunkSize :
 
 /--
 Memory usage estimation for transformer models.
---/
+-/
 def estimateMemoryUsage (tr : MemoryOptimizedTransformer) : Nat :=
   let paramMemory :=
     tr.vocabSize * tr.dModel * 4 +  -- Token embeddings
@@ -226,7 +226,7 @@ def estimateMemoryUsage (tr : MemoryOptimizedTransformer) : Nat :=
 
 /--
 Memory optimization properties for verification.
---/
+-/
 def memoryEfficient (tr : MemoryOptimizedTransformer) : Prop :=
   estimateMemoryUsage tr ≤ tr.maxMemoryMB * 1024 * 1024
 

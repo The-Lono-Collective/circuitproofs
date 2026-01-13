@@ -6,7 +6,7 @@ namespace FormalVerifML
 /--
 Large-scale transformer structure for 100M+ parameter models.
 This version includes advanced memory management, model parallelism, and distributed verification.
---/
+-/
 structure LargeScaleTransformer where
   -- Core dimensions (scaled up)
   dModel : Nat              -- Hidden dimension (typically 768-4096)
@@ -43,7 +43,7 @@ structure LargeScaleTransformer where
 /--
 Advanced sparse attention patterns for large-scale models.
 Implements Longformer-style sparse attention with local and global attention.
---/
+-/
 def advancedSparseAttentionPattern
   (seqLen : Nat)
   (chunkSize : Nat)
@@ -70,7 +70,7 @@ def advancedSparseAttentionPattern
 
 /--
 Memory-efficient attention with advanced optimizations.
---/
+-/
 def computeAdvancedSparseAttention
   (head : AttentionHead)
   (x : Array (Array Float))
@@ -121,7 +121,7 @@ def computeAdvancedSparseAttention
 /--
 Pipeline parallelism for large-scale models.
 Processes layers in parallel across multiple devices.
---/
+-/
 def pipelineParallelLayer
   (layerIdx : Nat)
   (heads : Array AttentionHead)
@@ -148,7 +148,7 @@ def pipelineParallelLayer
 
 /--
 Large-scale transformer evaluation with distributed processing.
---/
+-/
 def evalLargeScaleTransformer (tr : LargeScaleTransformer) (tokenIds : Array Nat) : Array Float :=
   -- Check memory constraints
   let estimatedMemory := tr.vocabSize * tr.dModel * 4  -- Rough estimate in bytes
@@ -197,7 +197,7 @@ def evalLargeScaleTransformer (tr : LargeScaleTransformer) (tokenIds : Array Nat
 
 /--
 Convert memory-optimized transformer to large-scale version.
---/
+-/
 def toLargeScale (tr : MemoryOptimizedTransformer)
   (useModelParallelism : Bool := true)
   (useMixedPrecision : Bool := true)
@@ -228,7 +228,7 @@ def toLargeScale (tr : MemoryOptimizedTransformer)
 
 /--
 Memory usage estimation for large-scale transformer models.
---/
+-/
 def estimateLargeScaleMemoryUsage (tr : LargeScaleTransformer) : Nat :=
   let paramMemory :=
     tr.vocabSize * tr.dModel * 4 +  -- Token embeddings
@@ -254,7 +254,7 @@ def estimateLargeScaleMemoryUsage (tr : LargeScaleTransformer) : Nat :=
 
 /--
 Large-scale model properties for verification.
---/
+-/
 def largeScaleMemoryEfficient (tr : LargeScaleTransformer) : Prop :=
   estimateLargeScaleMemoryUsage tr ≤ tr.maxMemoryGB * 1024 * 1024 * 1024
 

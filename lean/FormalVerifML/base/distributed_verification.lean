@@ -6,7 +6,7 @@ namespace FormalVerifML
 
 /--
 Distributed verification configuration.
---/
+-/
 structure DistributedConfig where
   -- Network settings
   numNodes : Nat            -- Number of verification nodes
@@ -26,7 +26,7 @@ structure DistributedConfig where
 
 /--
 Distributed verification task.
---/
+-/
 structure VerificationTask where
   taskId : String           -- Unique task identifier
   propertyType : String     -- Type of property to verify
@@ -39,7 +39,7 @@ structure VerificationTask where
 
 /--
 Verification result from a single node.
---/
+-/
 structure NodeResult where
   nodeId : String           -- Node identifier
   taskId : String           -- Task identifier
@@ -52,7 +52,7 @@ structure NodeResult where
 
 /--
 Distributed verification result.
---/
+-/
 structure DistributedResult where
   taskId : String           -- Task identifier
   overallStatus : String    -- Overall verification status
@@ -65,7 +65,7 @@ structure DistributedResult where
 
 /--
 Distribute verification tasks across nodes.
---/
+-/
 def distributeTasks
   (tasks : List VerificationTask)
   (config : DistributedConfig) : Array (List VerificationTask) :=
@@ -88,7 +88,7 @@ def distributeTasks
 
 /--
 Shard a large verification problem across multiple nodes.
---/
+-/
 def shardVerificationProblem
   (formula : SMTFormula)
   (config : DistributedConfig) : Array SMTFormula :=
@@ -105,7 +105,7 @@ def shardVerificationProblem
 
 /--
 Split a complex SMT formula into sub-formulas.
---/
+-/
 def splitFormula (formula : SMTFormula) (numParts : Nat) : Array SMTFormula :=
   -- Simplified formula splitting - in practice, this would be more sophisticated
   let mutable parts := Array.mkEmpty numParts
@@ -118,7 +118,7 @@ def splitFormula (formula : SMTFormula) (numParts : Nat) : Array SMTFormula :=
 
 /--
 Execute verification task on a single node.
---/
+-/
 def executeNodeTask
   (task : VerificationTask)
   (config : DistributedConfig)
@@ -166,7 +166,7 @@ def executeNodeTask
 
 /--
 Aggregate results from multiple nodes.
---/
+-/
 def aggregateResults (results : List NodeResult) : SMTResult :=
   -- Count different result types
   let satCount := results.filter (λ r => match r.result with | SMTResult.sat _ => true | _ => false).length
@@ -186,7 +186,7 @@ def aggregateResults (results : List NodeResult) : SMTResult :=
 
 /--
 Execute distributed verification.
---/
+-/
 def executeDistributedVerification
   (tasks : List VerificationTask)
   (config : DistributedConfig) : IO (List DistributedResult) := do
@@ -231,7 +231,7 @@ def executeDistributedVerification
 
 /--
 Load balancing for distributed verification.
---/
+-/
 def balanceLoad
   (tasks : List VerificationTask)
   (nodeCapacities : Array Nat)
@@ -270,7 +270,7 @@ def balanceLoad
 
 /--
 Fault-tolerant distributed verification.
---/
+-/
 def faultTolerantVerification
   (tasks : List VerificationTask)
   (config : DistributedConfig)
@@ -299,7 +299,7 @@ def faultTolerantVerification
 
 /--
 Generate verification report for distributed results.
---/
+-/
 def generateDistributedReport (results : List DistributedResult) : String :=
   let totalTasks := results.length
   let verifiedTasks := results.filter (λ r => r.overallStatus == "VERIFIED").length
@@ -332,7 +332,7 @@ def generateDistributedReport (results : List DistributedResult) : String :=
 
 /--
 Distributed verification properties for formal verification.
---/
+-/
 def distributedVerificationValid (config : DistributedConfig) : Prop :=
   config.numNodes > 0 ∧
   config.nodeTimeout > 0 ∧

@@ -9,11 +9,11 @@ namespace FormalVerifML
 /--
 Comprehensive test suite for transformer verification properties.
 This module provides systematic testing of all transformer properties.
---/
+-/
 
 /--
 Test configuration for comprehensive verification.
---/
+-/
 structure TestConfig where
   -- Model parameters
   testModel : Transformer
@@ -42,7 +42,7 @@ structure TestConfig where
 
 /--
 Test result structure.
---/
+-/
 structure TestResult where
   propertyName : String
   status : String  -- "PASS", "FAIL", "TIMEOUT", "ERROR"
@@ -53,7 +53,7 @@ structure TestResult where
 
 /--
 Test suite for attention robustness properties.
---/
+-/
 def testAttentionRobustness (config : TestConfig) : IO (List TestResult) := do
   let mut results := []
 
@@ -99,7 +99,7 @@ def testAttentionRobustness (config : TestConfig) : IO (List TestResult) := do
 
 /--
 Test suite for causal masking properties.
---/
+-/
 def testCausalMasking (config : TestConfig) : IO (List TestResult) := do
   let mut results := []
 
@@ -145,7 +145,7 @@ def testCausalMasking (config : TestConfig) : IO (List TestResult) := do
 
 /--
 Test suite for memory optimization properties.
---/
+-/
 def testMemoryOptimization (config : TestConfig) : IO (List TestResult) := do
   let mut results := []
 
@@ -217,7 +217,7 @@ def testMemoryOptimization (config : TestConfig) : IO (List TestResult) := do
 
 /--
 Test suite for interpretability properties.
---/
+-/
 def testInterpretability (config : TestConfig) : IO (List TestResult) := do
   let mut results := []
 
@@ -251,7 +251,7 @@ def testInterpretability (config : TestConfig) : IO (List TestResult) := do
 
 /--
 Test suite for fairness properties.
---/
+-/
 def testFairness (config : TestConfig) : IO (List TestResult) := do
   let mut results := []
 
@@ -272,7 +272,7 @@ def testFairness (config : TestConfig) : IO (List TestResult) := do
 
 /--
 Test suite for sequence invariance properties.
---/
+-/
 def testSequenceInvariance (config : TestConfig) : IO (List TestResult) := do
   let mut results := []
 
@@ -293,7 +293,7 @@ def testSequenceInvariance (config : TestConfig) : IO (List TestResult) := do
 
 /--
 Run comprehensive test suite.
---/
+-/
 def runComprehensiveTestSuite (config : TestConfig) : IO (List TestResult) := do
   let mut allResults := []
 
@@ -325,7 +325,7 @@ def runComprehensiveTestSuite (config : TestConfig) : IO (List TestResult) := do
 
 /--
 Generate test report.
---/
+-/
 def generateTestReport (results : List TestResult) : String :=
   let totalTests := results.length
   let passedTests := results.filter (λ r => r.status == "PASS").length
@@ -362,14 +362,14 @@ def generateTestReport (results : List TestResult) : String :=
 
 /--
 Main test execution function.
---/
+-/
 def main (config : TestConfig) : IO String := do
   let results := runComprehensiveTestSuite config
   return generateTestReport results
 
 /--
 Default test configuration using sample transformer.
---/
+-/
 def defaultTestConfig : TestConfig := {
   testModel := sampleTransformer,
   memoryOptimizedModel := toMemoryOptimized sampleTransformer,

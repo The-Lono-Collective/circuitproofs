@@ -5,7 +5,7 @@ namespace FormalVerifML
 /--
 A convolutional layer for a ConvNet.
 This layer contains a 2D filter (kernel), a stride (uniform in both dimensions), and a symmetric padding.
---/
+-/
 structure ConvLayer where
   filter  : Array (Array Float)  -- 2D kernel
   stride  : Nat                  -- Stride length
@@ -15,7 +15,7 @@ structure ConvLayer where
 /--
 Pad a 2D matrix with zeros.
 Adds `pad` rows at the top and bottom, and `pad` zeros to the left and right of each row.
---/
+-/
 def padMatrix (input : Array (Array Float)) (pad : Nat) : Array (Array Float) :=
   let H := input.size
   let W := if H > 0 then (input[0]!).size else 0
@@ -30,7 +30,7 @@ def padMatrix (input : Array (Array Float)) (pad : Nat) : Array (Array Float) :=
 /--
 Perform a simple 2D convolution on an input matrix using a given ConvLayer.
 This implementation computes the convolution sum over each valid window.
---/
+-/
 def conv2d (layer : ConvLayer) (input : Array (Array Float)) : Array (Array Float) :=
   let padded := padMatrix input layer.padding
   let H := padded.size
@@ -57,7 +57,7 @@ def conv2d (layer : ConvLayer) (input : Array (Array Float)) : Array (Array Floa
 Skeleton for a Convolutional Neural Network.
 The network consists of an input dimension, an output dimension, a list of convolutional layers,
 and a list of fully-connected (FC) layers. Each FC layer is represented as a pair (weight matrix, bias vector).
---/
+-/
 structure ConvNet where
   inputDim   : Nat
   outputDim  : Nat
@@ -67,7 +67,7 @@ structure ConvNet where
 /--
 Evaluate the ConvNet on a given 2D input.
 First applies the convolutional layers, then flattens the result, and finally applies each FC layer.
---/
+-/
 def evalConvNet (cnn : ConvNet) (x : Array (Array Float)) : Array Float :=
   let conv_output := cnn.convLayers.foldl (λ acc layer => conv2d layer acc) x
   let flattened : Array Float := conv_output.foldl (λ acc row => acc ++ row) #[]
@@ -79,7 +79,7 @@ def evalConvNet (cnn : ConvNet) (x : Array (Array Float)) : Array Float :=
 /--
 An RNN cell for a Recurrent Neural Network.
 It contains a weight matrix for the current input, one for the previous hidden state, and a bias vector.
---/
+-/
 structure RNNCell where
   weight_input  : Array (Array Float)
   weight_hidden : Array (Array Float)
@@ -88,7 +88,7 @@ structure RNNCell where
 /--
 Evaluate a single RNN cell given an input vector and a hidden state.
 Uses the existing evalLinear function for both parts and returns the element-wise sum.
---/
+-/
 def evalRNNCell (cell : RNNCell) (x h : Array Float) : Array Float :=
   let input_part  := evalLinear cell.weight_input cell.bias x
   let hidden_part := evalLinear cell.weight_hidden cell.bias h
@@ -98,7 +98,7 @@ def evalRNNCell (cell : RNNCell) (x h : Array Float) : Array Float :=
 Skeleton for a Recurrent Neural Network.
 Consists of an input dimension, a hidden state dimension, an output dimension, a list of RNN cells,
 and a final FC layer.
---/
+-/
 structure RecurrentNet where
   inputDim  : Nat
   hiddenDim : Nat
@@ -109,7 +109,7 @@ structure RecurrentNet where
 /--
 Evaluate the RecurrentNet on a sequence of input vectors.
 Starts with a zero hidden state, updates it with the first available RNN cell, and then applies the FC layer.
---/
+-/
 def evalRecurrentNet (rn : RecurrentNet) (xs : List (Array Float)) : Array Float :=
   let initial_hidden : Array Float := Array.mkArray rn.hiddenDim 0.0
   let final_hidden := xs.foldl (λ h x =>
@@ -123,7 +123,7 @@ def evalRecurrentNet (rn : RecurrentNet) (xs : List (Array Float)) : Array Float
 /--
 Helper: Multiply two matrices A and B.
 Assumes A : m×n and B : n×p. Returns the m×p product.
---/
+-/
 def matrixMul (A B : Array (Array Float)) : Array (Array Float) :=
   let m := A.size
   let n := if m > 0 then (A[0]!).size else 0
@@ -141,7 +141,7 @@ def matrixMul (A B : Array (Array Float)) : Array (Array Float) :=
 
 /--
 Helper: Transpose a matrix.
---/
+-/
 def transpose (M : Array (Array Float)) : Array (Array Float) :=
   let m := M.size
   let n := if m > 0 then (M[0]!).size else 0
@@ -155,7 +155,7 @@ def transpose (M : Array (Array Float)) : Array (Array Float) :=
 
 /--
 Helper: Compute the softmax of a vector.
---/
+-/
 def softmax (v : Array Float) : Array Float :=
   let exps := v.map (λ x => Float.exp x)
   let sumExp := exps.foldl (· + ·) 0.0
@@ -163,7 +163,7 @@ def softmax (v : Array Float) : Array Float :=
 
 /--
 Helper: Layer normalization
---/
+-/
 def layerNorm (x : Array Float) (weight : Array Float) (bias : Array Float) : Array Float :=
   let mean := x.foldl (· + ·) 0.0 / Float.ofNat x.size
   let variance := x.foldl (λ acc xi => acc + (xi - mean) * (xi - mean)) 0.0 / Float.ofNat x.size
@@ -173,7 +173,7 @@ def layerNorm (x : Array Float) (weight : Array Float) (bias : Array Float) : Ar
 
 /--
 Helper: Add positional encoding to input embeddings
---/
+-/
 def addPositionalEncoding (x : Array (Array Float)) : Array (Array Float) :=
   let seqLen := x.size
   let dModel := if seqLen > 0 then x[0]!.size else 0
@@ -189,7 +189,7 @@ def addPositionalEncoding (x : Array (Array Float)) : Array (Array Float) :=
 
 /--
 Structure for a single attention head
---/
+-/
 structure AttentionHead where
   W_q : Array (Array Float)  -- Query projection
   W_k : Array (Array Float)  -- Key projection
@@ -198,7 +198,7 @@ structure AttentionHead where
 
 /--
 Structure for a complete Transformer model with production-ready features
---/
+-/
 structure Transformer where
   -- Model dimensions
   dModel : Nat              -- Hidden dimension
@@ -227,7 +227,7 @@ structure Transformer where
 
 /--
 Compute scaled dot-product attention for a single head
---/
+-/
 def computeAttention (head : AttentionHead) (x : Array (Array Float)) : Array (Array Float) :=
   let queries := matrixMul x head.W_q
   let keys := matrixMul x head.W_k
@@ -252,7 +252,7 @@ def computeAttention (head : AttentionHead) (x : Array (Array Float)) : Array (A
 
 /--
 Compute multi-head attention
---/
+-/
 def multiHeadAttention (heads : Array AttentionHead) (x : Array (Array Float)) : Array (Array Float) :=
   let headOutputs := heads.map (λ head => computeAttention head x)
   -- Concatenate head outputs (simplified - assumes all heads have same output dimension)
@@ -260,7 +260,7 @@ def multiHeadAttention (heads : Array AttentionHead) (x : Array (Array Float)) :
 
 /--
 Apply a single transformer layer
---/
+-/
 def applyTransformerLayer
   (layerIdx : Nat)
   (heads : Array AttentionHead)
@@ -283,7 +283,7 @@ def applyTransformerLayer
 
 /--
 Evaluate the complete Transformer model
---/
+-/
 def evalTransformer (tr : Transformer) (tokenIds : Array Nat) : Array Float :=
   -- Token embeddings
   let tokenEmbs := tokenIds.map (λ id => tr.tokenEmbeddings.getD id (Array.mkEmpty 0))

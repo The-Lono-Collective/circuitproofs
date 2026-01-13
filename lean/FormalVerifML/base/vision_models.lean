@@ -6,7 +6,7 @@ namespace FormalVerifML
 /--
 Vision Transformer (ViT) structure for image processing.
 Implements the Vision Transformer architecture from "An Image is Worth 16x16 Words".
---/
+-/
 structure VisionTransformer where
   -- Core dimensions
   imageSize : Nat           -- Input image size (e.g., 224 for 224x224)
@@ -38,7 +38,7 @@ structure VisionTransformer where
 
 /--
 Extract patches from image and flatten them.
---/
+-/
 def extractPatches
   (image : Array (Array (Array Float))) -- [height, width, channels]
   (patchSize : Nat) : Array (Array Float) :=
@@ -72,7 +72,7 @@ def extractPatches
 
 /--
 Apply patch embeddings to flattened patches.
---/
+-/
 def applyPatchEmbeddings
   (patches : Array (Array Float))
   (patchEmbeddings : Array (Array Float)) : Array (Array Float) :=
@@ -85,7 +85,7 @@ def applyPatchEmbeddings
 
 /--
 Vision Transformer evaluation.
---/
+-/
 def evalVisionTransformer (vit : VisionTransformer) (image : Array (Array (Array Float))) : Array Float :=
   -- Extract patches
   let patches := extractPatches image vit.patchSize
@@ -152,7 +152,7 @@ def evalVisionTransformer (vit : VisionTransformer) (image : Array (Array (Array
 /--
 Swin Transformer structure for hierarchical vision processing.
 Implements the Swin Transformer architecture with shifted windows.
---/
+-/
 structure SwinTransformer where
   -- Core dimensions
   imageSize : Nat           -- Input image size
@@ -182,7 +182,7 @@ structure SwinTransformer where
 
 /--
 Window-based attention for Swin Transformer.
---/
+-/
 def windowAttention
   (heads : Array AttentionHead)
   (x : Array (Array Float))
@@ -192,7 +192,7 @@ def windowAttention
 
 /--
 Swin Transformer evaluation.
---/
+-/
 def evalSwinTransformer (swin : SwinTransformer) (image : Array (Array (Array Float))) : Array Float :=
   -- Extract patches
   let patches := extractPatches image swin.patchSize
@@ -240,7 +240,7 @@ def evalSwinTransformer (swin : SwinTransformer) (image : Array (Array (Array Fl
 
 /--
 Multi-modal transformer for vision-language tasks.
---/
+-/
 structure MultiModalTransformer where
   -- Vision parameters
   imageSize : Nat
@@ -271,7 +271,7 @@ structure MultiModalTransformer where
 
 /--
 Multi-modal transformer evaluation.
---/
+-/
 def evalMultiModalTransformer
   (mmt : MultiModalTransformer)
   (image : Array (Array (Array Float)))
@@ -326,7 +326,7 @@ def evalMultiModalTransformer
 
 /--
 Vision model properties for verification.
---/
+-/
 def visionTransformerValid (vit : VisionTransformer) : Prop :=
   vit.imageSize % vit.patchSize == 0 ∧  -- Image size must be divisible by patch size
   vit.numChannels > 0 ∧

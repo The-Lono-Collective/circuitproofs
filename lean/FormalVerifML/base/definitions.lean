@@ -32,7 +32,7 @@ All definitions are based on standard mathematical concepts:
 Author: FormalVerifML Team
 License: MIT
 Version: 2.0.0
---/
+-/
 
 namespace FormalVerifML
 
@@ -56,7 +56,7 @@ For a layer with input x and output y:
 - **relu**: y_i = max(0, x_i) for each component i
 - **sigmoid**: y_i = 1/(1 + exp(-x_i)) for each component i
 - **tanh**: y_i = tanh(x_i) for each component i
---/
+-/
 inductive LayerType
 | linear (weight : Array (Array Float)) (bias : Array Float)
 | relu
@@ -90,7 +90,7 @@ where each fᵢ is a layer function and k is the number of layers.
 
 - All layers must be compatible (output dimension of layer i = input dimension of layer i+1)
 - Final layer output dimension must equal network output dimension
---/
+-/
 structure NeuralNet where
   inputDim  : Nat
   outputDim : Nat
@@ -129,7 +129,7 @@ Output vector after linear transformation
 - w[0].size > 0 (at least one input feature)
 - b.size = w.size (bias dimension matches output dimension)
 - x.size = w[0].size (input dimension matches weight matrix columns)
---/
+-/
 def evalLinear (w : Array (Array Float)) (b : Array Float) (x : Array Float) : Array Float :=
   let mut out := #[]
   for i in [0 : w.size] do
@@ -165,7 +165,7 @@ Output vector after applying activation function
 - ReLU is piecewise linear and preserves non-negative values
 - Sigmoid maps any real number to (0, 1)
 - Tanh maps any real number to (-1, 1)
---/
+-/
 def evalActivation (layer : LayerType) (x : Array Float) : Array Float :=
   match layer with
   | relu    => x.map (fun v => if v < 0.0 then 0.0 else v)
@@ -193,7 +193,7 @@ Output vector after layer evaluation
 - For linear layers: applies matrix multiplication and bias addition
 - For activation layers: applies element-wise activation function
 - For other layer types: returns input unchanged (fallback behavior)
---/
+-/
 def evalLayer (l : LayerType) (x : Array Float) : Array Float :=
   match l with
   | linear w b => evalLinear w b x
@@ -234,7 +234,7 @@ Each layer's output becomes the input to the next layer.
 ## Postconditions
 
 - Result size = nn.outputDim (output dimension matches network specification)
---/
+-/
 def evalNeuralNet (nn : NeuralNet) (x : Array Float) : Array Float :=
   nn.layers.foldl (fun acc layer => evalLayer layer acc) x
 
@@ -261,7 +261,7 @@ where w ∈ ℝⁿ is the weight vector and b ∈ ℝ is the bias.
 
 - Linear regression: f(x) = wᵀx + b
 - Logistic regression: P(y=1|x) = σ(wᵀx + b) where σ is sigmoid function
---/
+-/
 structure LinearModel where
   inputDim : Nat
   weights  : Array Float
@@ -296,7 +296,7 @@ using foldl. Finally adds the bias term.
 
 - x.size = lm.weights.size (input dimension matches weight vector dimension)
 - x.size = lm.inputDim (input dimension matches model specification)
---/
+-/
 def evalLinearModel (lm : LinearModel) (x : Array Float) : Float :=
   let dot := (Array.zip x lm.weights).foldl (fun s (xi, wi) => s + xi * wi) 0.0
   dot + lm.bias
@@ -323,7 +323,7 @@ A decision tree T is defined recursively:
 - Each internal node has exactly two children
 - Leaf nodes have no children
 - The tree structure is finite and acyclic
---/
+-/
 inductive DecisionTree
 | leaf (label : Nat)
 | node (feature_index : Nat) (threshold : Float) (left : DecisionTree) (right : DecisionTree)
@@ -372,7 +372,7 @@ Classification label (natural number)
 - Deterministic: same input always produces same output
 - Fast evaluation: O(depth of tree) time complexity
 - Interpretable: decision path can be traced from root to leaf
---/
+-/
 def evalDecisionTree : DecisionTree → Array Float → Nat
 | leaf label, _ => label
 | node fi th left right, x =>
@@ -394,7 +394,7 @@ This allows for generic operations that work on any model type.
 
 This type is used for generic model evaluation and verification
 functions that can work with any supported model type.
---/
+-/
 inductive ModelType
 | neuralNet (model : NeuralNet)
 | linearModel (model : LinearModel)
@@ -425,7 +425,7 @@ evaluation function.
 
 - Input dimension matches model requirements
 - Input vector is valid for the model type
---/
+-/
 def evalModel : ModelType → Array Float → Array Float
 | ModelType.neuralNet model => evalNeuralNet model
 | ModelType.linearModel model => fun x => #[evalLinearModel model x]
@@ -448,7 +448,7 @@ Input dimension as natural number
 ## Usage
 
 Useful for validation and ensuring input compatibility across different model types.
---/
+-/
 def getInputDim : ModelType → Nat
 | ModelType.neuralNet model => model.inputDim
 | ModelType.linearModel model => model.inputDim
@@ -471,7 +471,7 @@ Output dimension as natural number
 ## Usage
 
 Useful for validation and ensuring output compatibility across different model types.
---/
+-/
 def getOutputDim : ModelType → Nat
 | ModelType.neuralNet model => model.outputDim
 | ModelType.linearModel _ => 1  -- Linear models output scalar

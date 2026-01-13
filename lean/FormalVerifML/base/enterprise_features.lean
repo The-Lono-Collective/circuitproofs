@@ -5,7 +5,7 @@ namespace FormalVerifML
 
 /--
 User authentication and authorization.
---/
+-/
 structure User where
   userId : String           -- Unique user identifier
   username : String         -- Username
@@ -20,7 +20,7 @@ structure User where
 
 /--
 Audit log entry for tracking system activities.
---/
+-/
 structure AuditLogEntry where
   entryId : String         -- Unique log entry identifier
   timestamp : Nat          -- Timestamp of the event
@@ -36,7 +36,7 @@ structure AuditLogEntry where
 
 /--
 Session management for multi-user support.
---/
+-/
 structure UserSession where
   sessionId : String       -- Unique session identifier
   userId : String          -- Associated user
@@ -50,7 +50,7 @@ structure UserSession where
 
 /--
 Project management for organizing verification tasks.
---/
+-/
 structure Project where
   projectId : String       -- Unique project identifier
   name : String           -- Project name
@@ -66,7 +66,7 @@ structure Project where
 
 /--
 Verification job with enterprise features.
---/
+-/
 structure VerificationJob where
   jobId : String          -- Unique job identifier
   projectId : String      -- Associated project
@@ -87,7 +87,7 @@ structure VerificationJob where
 
 /--
 Enterprise configuration for multi-user deployment.
---/
+-/
 structure EnterpriseConfig where
   -- Authentication settings
   enableAuthentication : Bool -- Whether to enable user authentication
@@ -117,7 +117,7 @@ structure EnterpriseConfig where
 
 /--
 User authentication and session management.
---/
+-/
 def authenticateUser (username : String) (password : String) (users : List User) : Option User :=
   -- Simplified authentication - in practice, this would use proper password hashing
   users.find? (λ user => user.username == username ∧ user.isActive)
@@ -147,7 +147,7 @@ def updateSessionActivity (session : UserSession) : UserSession :=
 
 /--
 Audit logging functions.
---/
+-/
 def logAction
   (userId : String)
   (action : String)
@@ -202,7 +202,7 @@ def logVerificationJob
 
 /--
 Authorization and access control.
---/
+-/
 def hasPermission (user : User) (permission : String) : Bool :=
   user.isActive ∧ user.permissions.contains permission
 
@@ -220,7 +220,7 @@ def canViewResults (user : User) (job : VerificationJob) : Bool :=
 
 /--
 Project management functions.
---/
+-/
 def createProject
   (name : String)
   (description : String)
@@ -256,7 +256,7 @@ def removeCollaborator (project : Project) (userId : String) : Project :=
 
 /--
 Verification job management with enterprise features.
---/
+-/
 def createVerificationJob
   (projectId : String)
   (userId : String)
@@ -306,7 +306,7 @@ def failJob (job : VerificationJob) (error : String) : VerificationJob :=
 
 /--
 Rate limiting and security features.
---/
+-/
 def checkRateLimit (userId : String) (requests : List Nat) (config : EnterpriseConfig) : Bool :=
   if config.enableRateLimiting then
     let now := IO.monoMsNow
@@ -331,7 +331,7 @@ def decryptData (encryptedData : String) (config : EnterpriseConfig) : String :=
 
 /--
 Enterprise verification execution with full audit trail.
---/
+-/
 def executeEnterpriseVerification
   (job : VerificationJob)
   (user : User)
@@ -395,7 +395,7 @@ def executeEnterpriseVerification
 
 /--
 Generate enterprise report with audit trail.
---/
+-/
 def generateEnterpriseReport
   (jobs : List VerificationJob)
   (auditLogs : List AuditLogEntry)
@@ -437,7 +437,7 @@ def generateEnterpriseReport
 
 /--
 Enterprise feature properties for verification.
---/
+-/
 def enterpriseConfigValid (config : EnterpriseConfig) : Prop :=
   config.sessionTimeout > 0 ∧
   config.maxSessionsPerUser > 0 ∧

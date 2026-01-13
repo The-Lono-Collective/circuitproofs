@@ -7,7 +7,7 @@ namespace FormalVerifML.AdvancedTactics
 A custom tactic that automatically splits the goal on a given boolean hypothesis.
 It performs a `by_cases` on the specified identifier and then simplifies.
 This tactic is particularly useful when dealing with piecewise-defined functions (e.g., ReLU).
---/
+-/
 elab "auto_split" ident:ident : tactic => do
   evalTactic <|← `(tactic| by_cases h : $ident <;> try simp)
 

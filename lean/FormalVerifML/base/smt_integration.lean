@@ -7,7 +7,7 @@ namespace FormalVerifML
 /--
 SMT solver interface for automated proof generation.
 This module provides integration with external SMT solvers like Z3.
---/
+-/
 structure SMTConfig where
   solver : String           -- SMT solver to use (e.g., "z3", "cvc4")
   timeout : Nat             -- Timeout in seconds
@@ -18,7 +18,7 @@ structure SMTConfig where
 
 /--
 SMT formula representation for transformer properties.
---/
+-/
 inductive SMTFormula where
   | var (name : String) : SMTFormula
   | const (value : Float) : SMTFormula
@@ -44,7 +44,7 @@ inductive SMTFormula where
 
 /--
 SMT solver result.
---/
+-/
 inductive SMTResult where
   | sat (model : List (String × Float)) : SMTResult
   | unsat (core : List SMTFormula) : SMTResult
@@ -54,7 +54,7 @@ inductive SMTResult where
 
 /--
 Convert Lean Float to SMT string representation.
---/
+-/
 def floatToSMT (f : Float) : String :=
   if f == 0.0 then "0.0"
   else if f == 1.0 then "1.0"
@@ -64,7 +64,7 @@ def floatToSMT (f : Float) : String :=
 
 /--
 Convert SMT formula to SMT-LIB string format.
---/
+-/
 def formulaToSMTLib : SMTFormula → String
   | SMTFormula.var name => name
   | SMTFormula.const value => floatToSMT value
@@ -90,7 +90,7 @@ def formulaToSMTLib : SMTFormula → String
 
 /--
 Generate SMT formula for attention robustness property.
---/
+-/
 def attentionRobustnessFormula
   (attention_fn : Array (Array Float) → Array (Array Float))
   (ε δ : Float) : SMTFormula :=
@@ -123,7 +123,7 @@ def attentionRobustnessFormula
 
 /--
 Generate SMT formula for causal masking property.
---/
+-/
 def causalMaskingFormula (f : Array Nat → Array Float) : SMTFormula :=
   let tokens1 := SMTFormula.var "tokens1"
   let tokens2 := SMTFormula.var "tokens2"
@@ -156,7 +156,7 @@ def causalMaskingFormula (f : Array Nat → Array Float) : SMTFormula :=
 
 /--
 Generate SMT formula for memory efficiency property.
---/
+-/
 def memoryEfficiencyFormula (tr : MemoryOptimizedTransformer) : SMTFormula :=
   let estimatedMemory := SMTFormula.const (Float.ofNat (estimateMemoryUsage tr))
   let maxMemory := SMTFormula.const (Float.ofNat (tr.maxMemoryMB * 1024 * 1024))
@@ -165,7 +165,7 @@ def memoryEfficiencyFormula (tr : MemoryOptimizedTransformer) : SMTFormula :=
 
 /--
 Generate SMT formula for sparse attention validity.
---/
+-/
 def sparseAttentionValidityFormula (tr : MemoryOptimizedTransformer) : SMTFormula :=
   let chunkSize := SMTFormula.const (Float.ofNat tr.chunkSize)
   let maxSeqLen := SMTFormula.const (Float.ofNat tr.maxSeqLen)
@@ -176,7 +176,7 @@ def sparseAttentionValidityFormula (tr : MemoryOptimizedTransformer) : SMTFormul
 
 /--
 SMT solver interface (placeholder for external integration).
---/
+-/
 def solveSMT (config : SMTConfig) (formula : SMTFormula) : IO SMTResult := do
   -- This would integrate with an actual SMT solver
   -- For now, return a placeholder result
@@ -184,7 +184,7 @@ def solveSMT (config : SMTConfig) (formula : SMTFormula) : IO SMTResult := do
 
 /--
 Automated proof generation for transformer properties.
---/
+-/
 def generateRobustnessProof
   (tr : Transformer)
   (ε δ : Float)
@@ -206,7 +206,7 @@ def generateMemoryEfficiencyProof
 
 /--
 Batch proof generation for multiple properties.
---/
+-/
 def generateBatchProofs
   (tr : Transformer)
   (properties : List (String × Float × Float))
@@ -224,7 +224,7 @@ def generateBatchProofs
 
 /--
 Proof verification and validation.
---/
+-/
 def verifyProof (result : SMTResult) (expected : Bool) : Bool :=
   match result with
   | SMTResult.sat _ => not expected  -- SAT means property is violated
@@ -235,7 +235,7 @@ def verifyProof (result : SMTResult) (expected : Bool) : Bool :=
 
 /--
 Generate counterexample from SAT result.
---/
+-/
 def extractCounterexample (result : SMTResult) : Option (List (String × Float)) :=
   match result with
   | SMTResult.sat model => some model
@@ -243,7 +243,7 @@ def extractCounterexample (result : SMTResult) : Option (List (String × Float))
 
 /--
 Generate proof certificate from UNSAT result.
---/
+-/
 def extractProofCertificate (result : SMTResult) : Option (List SMTFormula) :=
   match result with
   | SMTResult.unsat core => some core

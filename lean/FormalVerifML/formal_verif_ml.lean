@@ -40,20 +40,20 @@ open FormalVerifML
 
 /--
   A trivial theorem to ensure the project builds.
---/
+-/
 theorem project_builds_successfully : True :=
   trivial
 
 /--
   Trivial theorem referencing the sample transformer to ensure it is type-checked.
---/
+-/
 theorem sample_transformer_exists : True :=
   let _ := sampleTransformer;
   trivial
 
 /--
   Enterprise features are properly integrated.
---/
+-/
 theorem enterprise_features_integrated : True :=
   let _ : EnterpriseConfig := {
     enableAuthentication := true,
@@ -75,7 +75,7 @@ theorem enterprise_features_integrated : True :=
 
 /--
   Large-scale models are properly integrated.
---/
+-/
 theorem large_scale_models_integrated : True :=
   let _ : LargeScaleTransformer := {
     dModel := 4096,
@@ -105,7 +105,7 @@ theorem large_scale_models_integrated : True :=
 
 /--
   Vision models are properly integrated.
---/
+-/
 theorem vision_models_integrated : True :=
   let _ : VisionTransformer := {
     imageSize := 224,
@@ -133,7 +133,7 @@ theorem vision_models_integrated : True :=
 
 /--
   Distributed verification is properly integrated.
---/
+-/
 theorem distributed_verification_integrated : True :=
   let _ : DistributedConfig := {
     numNodes := 8,
@@ -149,7 +149,7 @@ theorem distributed_verification_integrated : True :=
 
 /--
   Certified Proof-Carrying Circuits are properly integrated.
---/
+-/
 theorem certified_circuits_integrated : True :=
   -- Verify the simple linear circuit exists and can be evaluated
   let circuit := simpleLinearCircuit
