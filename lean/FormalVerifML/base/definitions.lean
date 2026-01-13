@@ -428,8 +428,8 @@ evaluation function.
 --/
 def evalModel : ModelType → Array Float → Array Float
 | ModelType.neuralNet model => evalNeuralNet model
-| ModelType.linearModel model => #[evalLinearModel model]
-| ModelType.decisionTree model => #[Float.ofNat (evalDecisionTree model)]
+| ModelType.linearModel model => fun x => #[evalLinearModel model x]
+| ModelType.decisionTree model => fun x => #[Float.ofNat (evalDecisionTree model x)]
 
 /--
 # Model Input Dimension

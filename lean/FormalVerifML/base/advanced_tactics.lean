@@ -9,8 +9,7 @@ It performs a `by_cases` on the specified identifier and then simplifies.
 This tactic is particularly useful when dealing with piecewise-defined functions (e.g., ReLU).
 --/
 elab "auto_split" ident:ident : tactic => do
-  let hName := ident.getId
-  evalTactic <|← `(tactic| by_cases h : $(mkIdent hName); try simp)
+  evalTactic <|← `(tactic| by_cases h : $ident <;> try simp)
 
 /--
 Placeholder for integrating an external SMT solver.
