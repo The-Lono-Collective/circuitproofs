@@ -20,22 +20,25 @@ COPY . /app
 RUN elan toolchain install $(cat lean-toolchain) && \
     elan default $(cat lean-toolchain)
 
-# 6. Install Python dependencies
-RUN pip install --no-cache-dir -r translator/requirements.txt
-RUN pip install --no-cache-dir flask
-RUN pip install --no-cache-dir graphviz
+# 6. Install uv (fast Python package installer)
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+ENV PATH="/root/.local/bin:$PATH"
 
-# 7. Update lake dependencies
+# 7. Install Python dependencies using uv
+RUN uv pip install --system --no-cache -r translator/requirements.txt
+RUN uv pip install --system --no-cache flask graphviz
+
+# 8. Update lake dependencies
 RUN lake update
 
-# 8. Get Mathlib cache (downloads pre-built .olean files)
+# 9. Get Mathlib cache (downloads pre-built .olean files)
 RUN lake exe cache get
 
-# 9. Build with Lake from project root (lakefile.lean is here, with srcDir := "lean")
+# 10. Build with Lake from project root (lakefile.lean is here, with srcDir := "lean")
 RUN lake build
 
-# 10. Expose port 5000 for Flask
+# 11. Expose port 5000 for Flask
 EXPOSE 5000
 
-# 11. Launch your Flask web app
+# 12. Launch your Flask web app
 CMD ["python", "/app/webapp/app.py"]
