@@ -16,9 +16,8 @@ Placeholder for integrating an external SMT solver.
 In a production system, this function would convert the current goal to SMT-LIB format,
 invoke an external SMT solver, and use its response to construct a proof term.
 Here, it simply returns the input goal unchanged.
---/
-universe u
-def smt_solver_placeholder {α : Sort u} (goal : α) : α :=
+-/
+def smt_solver_placeholder.{u} {α : Sort u} (goal : α) : α :=
   -- In a full implementation:
   -- 1. Convert `goal` to SMT-LIB.
   -- 2. Call the external solver.
