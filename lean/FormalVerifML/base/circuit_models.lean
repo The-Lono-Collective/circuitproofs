@@ -128,7 +128,7 @@ def circuitApproximatesModel (circuit : Circuit) (originalModel : Array Float �
 
 /-- The circuit satisfies a property with high probability -/
 def circuitSatisfiesProperty (circuit : Circuit) (property : Array Float → Prop)
-    (confidence : Float) : Prop :=
+    (_confidence : Float) : Prop :=
   ∀ (x : Array Float),
   property (evalCircuit circuit x)
 
