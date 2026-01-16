@@ -88,7 +88,7 @@ def applySparseLinear (edges : List CircuitEdge) (bias : Array Float)
     if h : edge.targetIdx < acc.size then
       let inputVal := input.getD edge.sourceIdx 0.0
       let contribution := edge.weight * inputVal
-      let currentVal := acc.get ⟨edge.targetIdx, h⟩
+      let currentVal := acc[edge.targetIdx]
       acc.set ⟨edge.targetIdx, h⟩ (currentVal + contribution)
     else
       acc
@@ -182,9 +182,9 @@ theorem lipschitz_composition_bound (circuit : Circuit) :
   let ε := circuit.errorBound.epsilon
   let localErrs := circuit.errorBound.localErrors
   let lipschitzConsts := circuit.errorBound.lipschitzConstants
-  ε = localErrs.zip lipschitzConsts |>.foldl (fun acc (localErr, _lipConst) =>
-    acc + localErr  -- Simplified: full version would compute product of subsequent Lipschitz constants
-  ) 0 := by
+  ε = (localErrs.zip lipschitzConsts).foldl (fun acc pair =>
+    acc + pair.1  -- Simplified: full version would compute product of subsequent Lipschitz constants
+  ) 0.0 := by
   sorry  -- Proof would verify the composition formula
 
 /--
@@ -236,8 +236,8 @@ def circuitWellFormed (circuit : Circuit) : Bool :=
 
 /-- Create a simple linear circuit for testing -/
 def simpleLinearCircuit : Circuit :=
-  let edge1 : CircuitEdge := ⟨0, 0, 0.5⟩
-  let edge2 : CircuitEdge := ⟨1, 0, -0.3⟩
+  let edge1 : CircuitEdge := { sourceIdx := 0, targetIdx := 0, weight := 0.5 }
+  let edge2 : CircuitEdge := { sourceIdx := 1, targetIdx := 0, weight := -0.3 }
   let component : CircuitComponent := {
     layerIdx := 0,
     componentType := CircuitComponentType.other,

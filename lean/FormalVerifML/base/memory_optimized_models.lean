@@ -74,8 +74,8 @@ def computeSparseAttention
     row.zipWith (λ score j =>
       let patternRow := pattern.getD i #[]
       if patternRow.getD j false then score else -Float.inf
-    ) (List.range row.size)
-  ) (List.range scores.size)
+    ) (List.range row.size).toArray
+  ) (List.range scores.size).toArray
 
   -- Scale by sqrt(d_k)
   let d_k := Float.ofNat (if scores.size > 0 then scores[0]!.size else 0)
@@ -114,10 +114,10 @@ def processInChunks
 Memory-efficient transformer layer with optional optimizations.
 --/
 def applyMemoryOptimizedLayer
-  (layerIdx : Nat)
+  (_layerIdx : Nat)
   (heads : Array AttentionHead)
   (ln1 ln2 : Array Float × Array Float)
-  (ff1 ff2 : Array (Array Float) × Array Float)
+  (ff1 _ff2 : Array (Array Float) × Array Float)
   (x : Array (Array Float))
   (useSparse : Bool)
   (chunkSize : Nat) : Array (Array Float) :=
