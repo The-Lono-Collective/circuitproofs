@@ -38,21 +38,22 @@ Sparse attention pattern for memory efficiency.
 Only attends to a subset of positions to reduce memory usage.
 --/
 def sparseAttentionPattern (seqLen : Nat) (chunkSize : Nat) : Array (Array Bool) :=
-  let mutable pattern := Array.mkEmpty seqLen
-  for i in List.range seqLen do
-    let mutable row := Array.mkEmpty seqLen
-    for j in List.range seqLen do
-      -- Local attention within chunks
-      let chunk_i := i / chunkSize
-      let chunk_j := j / chunkSize
-      let isLocal := chunk_i == chunk_j
+  Id.run do
+    let mut pattern : Array (Array Bool) := Array.mkEmpty seqLen
+    for i in List.range seqLen do
+      let mut row : Array Bool := Array.mkEmpty seqLen
+      for j in List.range seqLen do
+        -- Local attention within chunks
+        let chunk_i := i / chunkSize
+        let chunk_j := j / chunkSize
+        let isLocal := chunk_i == chunk_j
 
-      -- Global attention to first token of each chunk
-      let isGlobal := j % chunkSize == 0
+        -- Global attention to first token of each chunk
+        let isGlobal := j % chunkSize == 0
 
-      row := row.push (isLocal || isGlobal)
-    pattern := pattern.push row
-  pattern
+        row := row.push (isLocal || isGlobal)
+      pattern := pattern.push row
+    return pattern
 
 /--
 Memory-efficient attention computation with sparse patterns.
@@ -71,7 +72,8 @@ def computeSparseAttention
   -- Apply sparse attention pattern
   let maskedScores := scores.zipWith (λ row i =>
     row.zipWith (λ score j =>
-      if pattern.getD i (Array.mkEmpty 0).getD j false then score else Float.negInf
+      let patternRow := pattern.getD i #[]
+      if patternRow.getD j false then score else -Float.inf
     ) (List.range row.size)
   ) (List.range scores.size)
 
@@ -97,15 +99,16 @@ def processInChunks
   (x : Array (Array Float))
   (chunkSize : Nat) : Array (Array Float) :=
   let seqLen := x.size
-  let mutable result := Array.mkEmpty seqLen
-
-  for chunkStart in List.range 0 seqLen chunkSize do
-    let chunkEnd := Nat.min (chunkStart + chunkSize) seqLen
-    let chunk := x.extract chunkStart chunkEnd
-    let processedChunk := f chunk
-    result := result ++ processedChunk
-
-  result
+  let numChunks := (seqLen + chunkSize - 1) / chunkSize
+  Id.run do
+    let mut result : Array (Array Float) := Array.mkEmpty seqLen
+    for chunkIdx in List.range numChunks do
+      let chunkStart := chunkIdx * chunkSize
+      let chunkEnd := Nat.min (chunkStart + chunkSize) seqLen
+      let chunk := x.extract chunkStart chunkEnd
+      let processedChunk := f chunk
+      result := result ++ processedChunk
+    return result
 
 /--
 Memory-efficient transformer layer with optional optimizations.
@@ -123,7 +126,7 @@ def applyMemoryOptimizedLayer
   let attnOut := if useSparse then
     let pattern := sparseAttentionPattern x.size chunkSize
     let headOutputs := heads.map (λ head => computeSparseAttention head x pattern)
-    headOutputs.foldl (λ acc headOut => acc) headOutputs[0]!
+    headOutputs.foldl (λ acc _headOut => acc) headOutputs[0]!
   else
     multiHeadAttention heads x
 
@@ -148,39 +151,41 @@ def evalMemoryOptimizedTransformer (tr : MemoryOptimizedTransformer) (tokenIds :
 
   if memoryMB > tr.maxMemoryMB then
     -- Use chunked processing
-    let tokenEmbs := tokenIds.map (λ id => tr.tokenEmbeddings.getD id (Array.mkEmpty 0))
+    let tokenEmbs := tokenIds.map (λ id => tr.tokenEmbeddings.getD id #[])
     let posEmbs := addPositionalEncoding tokenEmbs
 
-    let mutable hidden := posEmbs
-    for layerIdx in List.range tr.numLayers do
-      let heads := tr.attentionHeads.getD layerIdx (Array.mkEmpty 0)
-      let ln1 := tr.layerNorms1.getD layerIdx (Array.mkEmpty 0, Array.mkEmpty 0)
-      let ln2 := tr.layerNorms2.getD layerIdx (Array.mkEmpty 0, Array.mkEmpty 0)
-      let ff1 := tr.ffWeights1.getD layerIdx (Array.mkEmpty 0, Array.mkEmpty 0)
-      let ff2 := tr.ffWeights2.getD layerIdx (Array.mkEmpty 0, Array.mkEmpty 0)
+    Id.run do
+      let mut hidden := posEmbs
+      for layerIdx in List.range tr.numLayers do
+        let heads := tr.attentionHeads.getD layerIdx #[]
+        let ln1 := tr.layerNorms1.getD layerIdx (#[], #[])
+        let ln2 := tr.layerNorms2.getD layerIdx (#[], #[])
+        let ff1 := tr.ffWeights1.getD layerIdx (#[], #[])
+        let _ff2 := tr.ffWeights2.getD layerIdx (#[], #[])
 
-      hidden := processInChunks
-        (λ chunk => applyMemoryOptimizedLayer layerIdx heads ln1 ln2 ff1 ff2 chunk tr.useSparseAttention tr.chunkSize)
-        hidden tr.chunkSize
+        hidden := processInChunks
+          (λ chunk => applyMemoryOptimizedLayer layerIdx heads ln1 ln2 ff1 _ff2 chunk tr.useSparseAttention tr.chunkSize)
+          hidden tr.chunkSize
 
-    let finalHidden := hidden.foldl (λ acc row => acc ++ row) #[]
-    evalLinear tr.outputProjection.1 tr.outputProjection.2 finalHidden
+      let finalHidden := hidden.foldl (λ acc row => acc ++ row) #[]
+      return evalLinear tr.outputProjection.1 tr.outputProjection.2 finalHidden
   else
     -- Use regular processing for smaller models
-    let tokenEmbs := tokenIds.map (λ id => tr.tokenEmbeddings.getD id (Array.mkEmpty 0))
+    let tokenEmbs := tokenIds.map (λ id => tr.tokenEmbeddings.getD id #[])
     let posEmbs := addPositionalEncoding tokenEmbs
 
-    let mutable hidden := posEmbs
-    for layerIdx in List.range tr.numLayers do
-      let heads := tr.attentionHeads.getD layerIdx (Array.mkEmpty 0)
-      let ln1 := tr.layerNorms1.getD layerIdx (Array.mkEmpty 0, Array.mkEmpty 0)
-      let ln2 := tr.layerNorms2.getD layerIdx (Array.mkEmpty 0, Array.mkEmpty 0)
-      let ff1 := tr.ffWeights1.getD layerIdx (Array.mkEmpty 0, Array.mkEmpty 0)
-      let ff2 := tr.ffWeights2.getD layerIdx (Array.mkEmpty 0, Array.mkEmpty 0)
-      hidden := applyMemoryOptimizedLayer layerIdx heads ln1 ln2 ff1 ff2 hidden tr.useSparseAttention tr.chunkSize
+    Id.run do
+      let mut hidden := posEmbs
+      for layerIdx in List.range tr.numLayers do
+        let heads := tr.attentionHeads.getD layerIdx #[]
+        let ln1 := tr.layerNorms1.getD layerIdx (#[], #[])
+        let ln2 := tr.layerNorms2.getD layerIdx (#[], #[])
+        let ff1 := tr.ffWeights1.getD layerIdx (#[], #[])
+        let _ff2 := tr.ffWeights2.getD layerIdx (#[], #[])
+        hidden := applyMemoryOptimizedLayer layerIdx heads ln1 ln2 ff1 _ff2 hidden tr.useSparseAttention tr.chunkSize
 
-    let finalHidden := hidden.foldl (λ acc row => acc ++ row) #[]
-    evalLinear tr.outputProjection.1 tr.outputProjection.2 finalHidden
+      let finalHidden := hidden.foldl (λ acc row => acc ++ row) #[]
+      return evalLinear tr.outputProjection.1 tr.outputProjection.2 finalHidden
 
 /--
 Convert regular transformer to memory-optimized version.

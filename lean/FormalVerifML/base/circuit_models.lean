@@ -7,6 +7,7 @@ circuits extracted from neural networks using BlockCert-style extraction.
 
 import FormalVerifML.base.definitions
 import FormalVerifML.base.advanced_models
+import FormalVerifML.base.ml_properties
 
 namespace FormalVerifML
 
@@ -123,7 +124,7 @@ def circuitApproximatesModel (circuit : Circuit) (originalModel : Array Float �
   ∀ (x : Array Float),
   let circuitOutput := evalCircuit circuit x
   let modelOutput := originalModel x
-  ‖circuitOutput - modelOutput‖ < circuit.errorBound.epsilon
+  distL2 circuitOutput modelOutput < circuit.errorBound.epsilon
 
 /-- The circuit satisfies a property with high probability -/
 def circuitSatisfiesProperty (circuit : Circuit) (property : Array Float → Prop)
@@ -134,20 +135,21 @@ def circuitSatisfiesProperty (circuit : Circuit) (property : Array Float → Pro
 /-- Robustness property for circuits: small input changes lead to small output changes -/
 def circuitRobust (circuit : Circuit) (δ : Float) (ε : Float) : Prop :=
   ∀ (x y : Array Float),
-  ‖x - y‖ < δ →
-  ‖evalCircuit circuit x - evalCircuit circuit y‖ < ε
+  distL2 x y < δ →
+  distL2 (evalCircuit circuit x) (evalCircuit circuit y) < ε
 
 /-- Monotonicity property: circuit output is monotonic in a specific feature -/
 def circuitMonotonic (circuit : Circuit) (featureIdx : Nat) : Prop :=
   ∀ (x y : Array Float),
-  (∀ i, i ≠ featureIdx → x.getD i 0 = y.getD i 0) →
+  (∀ (i : Nat), i ≠ featureIdx → x.getD i 0 = y.getD i 0) →
   x.getD featureIdx 0 ≤ y.getD featureIdx 0 →
-  evalCircuit circuit x ≤ evalCircuit circuit y
+  -- Compare first element of output arrays
+  (evalCircuit circuit x).getD 0 0 ≤ (evalCircuit circuit y).getD 0 0
 
 /-- Lipschitz continuity of the circuit -/
 def circuitLipschitz (circuit : Circuit) (L : Float) : Prop :=
   ∀ (x y : Array Float),
-  ‖evalCircuit circuit x - evalCircuit circuit y‖ ≤ L * ‖x - y‖
+  distL2 (evalCircuit circuit x) (evalCircuit circuit y) ≤ L * distL2 x y
 
 /-! ## Sparsity Analysis -/
 
@@ -263,8 +265,8 @@ def simpleLinearCircuit : Circuit :=
     certificateHash := "example_hash"
   }
 
-#eval evalCircuit simpleLinearCircuit #[1.0, 2.0]
-#eval circuitSparsity simpleLinearCircuit
-#eval circuitNumParameters simpleLinearCircuit
+#eval! evalCircuit simpleLinearCircuit #[1.0, 2.0]
+#eval! circuitSparsity simpleLinearCircuit
+#eval! circuitNumParameters simpleLinearCircuit
 
 end FormalVerifML

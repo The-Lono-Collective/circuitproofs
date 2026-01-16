@@ -12,7 +12,7 @@ We assume the following two axioms:
 2. Margin condition: For any input, if the first output is nonnegative then it is at least 0.1, and if negative then at most -0.1.
 --/
 axiom example_net_lipschitz : ∀ x x' : Array Float,
-  |(evalNeuralNet exampleNeuralNet x)[0]! - (evalNeuralNet exampleNeuralNet x')[0]!| ≤ 50 * distL2 x x'
+  Float.abs ((evalNeuralNet exampleNeuralNet x)[0]! - (evalNeuralNet exampleNeuralNet x')[0]!) ≤ 50 * distL2 x x'
 axiom example_net_margin : ∀ x : Array Float,
   if (evalNeuralNet exampleNeuralNet x)[0]! ≥ 0 then (evalNeuralNet exampleNeuralNet x)[0]! ≥ 0.1
   else (evalNeuralNet exampleNeuralNet x)[0]! ≤ -0.1

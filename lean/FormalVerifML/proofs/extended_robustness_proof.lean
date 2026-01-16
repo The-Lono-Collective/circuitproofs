@@ -21,7 +21,7 @@ Note: This theorem uses sorry as a placeholder. A complete proof would use
 induction on the number of layers and compose the Lipschitz bounds.
 --/
 theorem neural_net_lipschitz (nn : NeuralNet) (x x' : Array Float) :
-  distL2 (evalNeuralNet nn x) (evalNeuralNet nn x') ≤ (2^(nn.layers.length)) * distL2 x x' := by
+  distL2 (evalNeuralNet nn x) (evalNeuralNet nn x') ≤ Float.pow 2.0 (Float.ofNat nn.layers.length) * distL2 x x' := by
   sorry
 
 end ExtendedRobustness
