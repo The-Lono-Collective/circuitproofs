@@ -9,6 +9,7 @@ This script tests all the new enterprise features including:
 """
 
 import subprocess
+import sys
 import json
 import time
 import os
@@ -47,7 +48,7 @@ class EnterpriseFeatureTester:
                 try:
                     # Test model loading and basic inference
                     cmd = [
-                        "python",
+                        sys.executable,
                         "-c",
                         f"""
 import torch
@@ -143,13 +144,16 @@ print("Large model test completed successfully")
 
                 try:
                     cmd = [
-                        "python",
+                        sys.executable,
                         "-c",
                         f"""
 import torch
 from transformers import AutoModel, AutoProcessor, AutoImageProcessor
+from PIL import Image
+import numpy as np
 import time
 import psutil
+import os
 
 print(f"Loading vision model: {model_name}...")
 start_time = time.time()
@@ -170,8 +174,16 @@ print(f"Vision model loaded in {{load_time:.2f}}s")
 print(f"Parameters: {{param_count:,}}")
 print(f"Memory usage: {{memory_mb:.1f}}MB")
 
-# Create dummy image input (3x224x224)
-dummy_image = torch.randn(1, 3, 224, 224)
+# Use test asset image if available, otherwise create a dummy image
+test_image_path = "translator/test_assets/synthetic_pattern.png"
+if os.path.exists(test_image_path):
+    dummy_image = Image.open(test_image_path).convert("RGB")
+    print(f"Loaded test image: {{test_image_path}}, size={{dummy_image.size}}")
+else:
+    # Fallback: create a proper dummy image using PIL (RGB, 224x224)
+    dummy_array = np.random.randint(0, 256, (224, 224, 3), dtype=np.uint8)
+    dummy_image = Image.fromarray(dummy_array, mode='RGB')
+    print(f"Created dummy PIL image: {{dummy_image.size}}, mode={{dummy_image.mode}}")
 
 # Test inference
 with torch.no_grad():
@@ -182,10 +194,20 @@ with torch.no_grad():
         outputs = model(**inputs)
     else:
         # Vision Transformer expects only image
-        inputs = processor(dummy_image, return_tensors="pt")
+        inputs = processor(images=dummy_image, return_tensors="pt")
         outputs = model(**inputs)
 
-print(f"Output shape: {{outputs.last_hidden_state.shape if hasattr(outputs, 'last_hidden_state') else outputs.logits.shape}}")
+# Handle different model output structures
+if hasattr(outputs, 'last_hidden_state'):
+    print(f"Output shape: {{outputs.last_hidden_state.shape}}")
+elif hasattr(outputs, 'image_embeds'):
+    # CLIP model returns image_embeds and text_embeds
+    print(f"Image embeds shape: {{outputs.image_embeds.shape}}")
+    print(f"Text embeds shape: {{outputs.text_embeds.shape}}")
+elif hasattr(outputs, 'logits'):
+    print(f"Logits shape: {{outputs.logits.shape}}")
+else:
+    print(f"Output keys: {{list(outputs.keys())}}")
 print("Vision model test completed successfully")
 """,
                     ]
@@ -265,7 +287,7 @@ print("Vision model test completed successfully")
         try:
             # Test web interface with enterprise features
             web_process = subprocess.Popen(
-                ["python", "webapp/app.py"],
+                [sys.executable, "webapp/app.py"],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
             )
@@ -336,7 +358,7 @@ print("Vision model test completed successfully")
         try:
             # Test memory-optimized model generation
             cmd = [
-                "python",
+                sys.executable,
                 "translator/generate_lean_model.py",
                 "--model_json",
                 "translator/sample_transformer.json",
@@ -371,7 +393,7 @@ print("Vision model test completed successfully")
             test_data = "sensitive_model_data"
 
             cmd = [
-                "python",
+                sys.executable,
                 "-c",
                 f"""
 # Simulate encryption/decryption
