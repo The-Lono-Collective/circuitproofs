@@ -43,8 +43,8 @@ def extractPatches
   (image : Array (Array (Array Float))) -- [height, width, channels]
   (patchSize : Nat) : Array (Array Float) := Id.run do
   let height := image.size
-  let width := if height > 0 then image[0]!.size else 0
-  let channels := if width > 0 then image[0]![0]!.size else 0
+  let width := if height > 0 then (image[0]!).size else 0
+  let channels := if width > 0 then ((image[0]!)[0]!).size else 0
 
   let numPatchesH := height / patchSize
   let numPatchesW := width / patchSize
@@ -186,7 +186,7 @@ Window-based attention for Swin Transformer.
 def windowAttention
   (heads : Array AttentionHead)
   (x : Array (Array Float))
-  (windowSize : Nat) : Array (Array Float) :=
+  (_windowSize : Nat) : Array (Array Float) :=
   -- Simplified window attention implementation
   multiHeadAttention heads x
 

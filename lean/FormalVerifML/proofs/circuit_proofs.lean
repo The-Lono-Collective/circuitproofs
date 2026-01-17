@@ -109,7 +109,7 @@ def computeCircuitLipschitz (circuit : Circuit) : Float :=
     let componentLipschitz := component.edges.foldl (fun sum edge =>
       sum + |edge.weight|
     ) 0.0
-    acc * max componentLipschitz 1.0
+    acc * Float.max componentLipschitz 1.0
   ) 1.0
 
 /--
