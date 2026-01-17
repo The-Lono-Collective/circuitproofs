@@ -50,6 +50,7 @@ structure TestResult where
   details : String
   counterexample : Option (List (String × Float)) := none
   proofCertificate : Option (List SMTFormula) := none
+  deriving Repr
 
 /--
 Test suite for attention robustness properties.
@@ -328,24 +329,24 @@ Generate test report.
 --/
 def generateTestReport (results : List TestResult) : String :=
   let totalTests := results.length
-  let passedTests := results.filter (λ r => r.status == "PASS").length
-  let failedTests := results.filter (λ r => r.status == "FAIL").length
-  let timeoutTests := results.filter (λ r => r.status == "TIMEOUT").length
-  let errorTests := results.filter (λ r => r.status == "ERROR").length
+  let passedTests := results.filter (fun (r : TestResult) => r.status == "PASS")
+  let failedTests := results.filter (fun (r : TestResult) => r.status == "FAIL")
+  let timeoutTests := results.filter (fun (r : TestResult) => r.status == "TIMEOUT")
+  let errorTests := results.filter (fun (r : TestResult) => r.status == "ERROR")
 
   let totalTime := results.foldl (λ acc r => acc + r.executionTime) 0.0
 
   let report := s!"COMPREHENSIVE TEST REPORT\n"
-    ++ s!"{String.mk (List.replicate 50 '=')}\n"
+    ++ s!"{String.ofList (List.replicate 50 '=')}\n"
     ++ s!"Total Tests: {totalTests}\n"
-    ++ s!"Passed: {passedTests}\n"
-    ++ s!"Failed: {failedTests}\n"
-    ++ s!"Timeout: {timeoutTests}\n"
-    ++ s!"Error: {errorTests}\n"
+    ++ s!"Passed: {passedTests.length}\n"
+    ++ s!"Failed: {failedTests.length}\n"
+    ++ s!"Timeout: {timeoutTests.length}\n"
+    ++ s!"Error: {errorTests.length}\n"
     ++ s!"Total Execution Time: {totalTime}s\n"
-    ++ s!"Success Rate: {Float.ofNat passedTests / Float.ofNat totalTests * 100.0}%\n\n"
+    ++ s!"Success Rate: {Float.ofNat passedTests.length / Float.ofNat totalTests * 100.0}%\n\n"
     ++ s!"DETAILED RESULTS:\n"
-    ++ s!"{String.mk (List.replicate 50 '=')}\n"
+    ++ s!"{String.ofList (List.replicate 50 '=')}\n"
 
   let detailedResults := results.map (λ r =>
     s!"{r.propertyName}: {r.status} ({r.executionTime}s)\n"
