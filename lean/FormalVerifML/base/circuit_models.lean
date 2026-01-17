@@ -80,21 +80,34 @@ structure Circuit where
 /-- Apply a sparse linear transformation using explicit edges -/
 def applySparseLinear (edges : List CircuitEdge) (bias : Array Float)
     (input : Array Float) (outputDim : Nat) : Array Float :=
-  -- Initialize output with bias
-  let output := bias
+  -- 1. Initialize authoritatively using outputDim
+  -- Use Array.replicate instead of mkArray
+  let initial := Array.replicate outputDim 0.0
 
-  -- For each edge, add weight * input[source] to output[target]
+  -- 2. Safely apply bias
+  -- Iterate over the *target* dimension. If bias is short, add 0.0.
+  -- This prevents truncation errors inherent to zipWith.
+  let outputWithBias := initial.mapIdx fun i val =>
+    if h : i < bias.size then val + bias[i] else val
+
+  -- 3. Apply sparse edges with bounds checks
   edges.foldl (fun acc edge =>
-    if h : edge.targetIdx < acc.size then
-      let inputVal := input.getD edge.sourceIdx 0.0
-      let contribution := edge.weight * inputVal
-      -- Use bracket syntax with 'h for safe access
-      let currentVal := acc[edge.targetIdx]'h
-      -- Pass the index, value, and proof 'h' separately to set
-      acc.set edge.targetIdx (currentVal + contribution) h
+    -- Check source bounds to read input safely
+    if h_source : edge.sourceIdx < input.size then
+      -- Check target bounds to write to accumulator safely
+      if h_target : edge.targetIdx < acc.size then
+        let inputVal := input[edge.sourceIdx]'h_source
+        let currentVal := acc[edge.targetIdx]'h_target
+        let contribution := inputVal * edge.weight
+
+        -- 4. Proof-carrying update
+        -- Pass index, value, and proof 'h_target' explicitly
+        acc.set edge.targetIdx (currentVal + contribution) h_target
+      else
+        acc -- Drop edges pointing outside the authoritative outputDim
     else
-      acc
-  ) output
+      acc -- Drop edges pointing to invalid input indices
+  ) outputWithBias
 
 /-- Evaluate a single circuit component -/
 def evalCircuitComponent (component : CircuitComponent) (input : Array Float) : Array Float :=
