@@ -342,13 +342,13 @@ def generateTestReport (results : List TestResult) : String :=
     ++ s!"Failed: {failedTests}\n"
     ++ s!"Timeout: {timeoutTests}\n"
     ++ s!"Error: {errorTests}\n"
-    ++ s!"Total Execution Time: {totalTime:.3f}s\n"
-    ++ s!"Success Rate: {Float.ofNat passedTests / Float.ofNat totalTests * 100.0:.1f}%\n\n"
+    ++ s!"Total Execution Time: {totalTime}s\n"
+    ++ s!"Success Rate: {Float.ofNat passedTests / Float.ofNat totalTests * 100.0}%\n\n"
     ++ s!"DETAILED RESULTS:\n"
     ++ s!"{String.mk (List.replicate 50 '=')}\n"
 
   let detailedResults := results.map (λ r =>
-    s!"{r.propertyName}: {r.status} ({r.executionTime:.3f}s)\n"
+    s!"{r.propertyName}: {r.status} ({r.executionTime}s)\n"
     ++ s!"  Details: {r.details}\n"
     ++ (match r.counterexample with
         | some ce => s!"  Counterexample: {ce}\n"
