@@ -1,4 +1,6 @@
 flask
+flask-cors
+graphviz
 argparse
 torch
 gunicorn
