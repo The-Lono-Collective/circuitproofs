@@ -7,6 +7,7 @@ using the Certified Proof-Carrying Circuits pipeline.
 
 import FormalVerifML.base.circuit_models
 import FormalVerifML.base.definitions
+import FormalVerifML.base.ml_properties
 
 namespace FormalVerifML
 
@@ -15,7 +16,7 @@ namespace FormalVerifML
 /-- Proof that the simple linear circuit is well-formed -/
 theorem simpleLinearCircuit_wellformed :
   circuitWellFormed simpleLinearCircuit = true := by
-  rfl
+  native_decide
 
 /-- Proof that evaluating the circuit on specific input produces expected output -/
 theorem simpleLinearCircuit_eval_example :
@@ -23,7 +24,7 @@ theorem simpleLinearCircuit_eval_example :
   let output := evalCircuit simpleLinearCircuit input
   -- output should be approximately 0.5 * 1.0 + (-0.3) * 2.0 + 0.1 = 0.5 - 0.6 + 0.1 = 0.0
   output.size = 1 := by
-  rfl
+  native_decide
 
 /-- The simple circuit has positive sparsity -/
 theorem simpleLinearCircuit_sparse :
@@ -40,7 +41,7 @@ This is a key property for safety-critical applications.
 theorem circuit_robustness_example (circuit : Circuit) (δ ε : Float) :
   (∀ component ∈ circuit.components,
     ∀ edge ∈ component.edges,
-    |edge.weight| ≤ 1.0) →
+    Float.abs edge.weight ≤ 1.0) →
   δ = 0.01 →
   ε = 0.05 →
   circuitRobust circuit δ ε := by
@@ -106,9 +107,9 @@ def computeCircuitLipschitz (circuit : Circuit) : Float :=
     -- For linear layer, Lipschitz constant is the spectral norm
     -- Approximated by the sum of absolute weights
     let componentLipschitz := component.edges.foldl (fun sum edge =>
-      sum + |edge.weight|
+      sum + Float.abs edge.weight
     ) 0.0
-    acc * max componentLipschitz 1.0
+    acc * (if componentLipschitz > 1.0 then componentLipschitz else 1.0)
   ) 1.0
 
 /--
@@ -203,7 +204,7 @@ def circuitDemographicParity
   let x2 := x.set! sensitiveFeatureIdx val2
   let out1 := evalCircuit circuit x1
   let out2 := evalCircuit circuit x2
-  ‖out1 - out2‖ < tolerance
+  distL2 out1 out2 < tolerance
 
 /-! ## Interpretability Properties -/
 
@@ -266,7 +267,7 @@ theorem sparse_more_efficient (circuit : Circuit) (denseParams : Nat) :
   circuitNumParameters circuit < denseParams →
   circuitSparsity circuit > 0.5 →
   True := by
-  trivial
+  simp
   -- In practice, would prove runtime or memory bounds
 
 end FormalVerifML

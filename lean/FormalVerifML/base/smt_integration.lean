@@ -41,6 +41,10 @@ inductive SMTFormula where
   | implies (left right : SMTFormula) : SMTFormula
   | forall (var : String) (body : SMTFormula) : SMTFormula
   | exists (var : String) (body : SMTFormula) : SMTFormula
+  deriving Repr, BEq
+
+instance : ToString SMTFormula where
+  toString f := reprStr f
 
 /--
 SMT solver result.
@@ -51,6 +55,7 @@ inductive SMTResult where
   | unknown (reason : String) : SMTResult
   | timeout : SMTResult
   | error (message : String) : SMTResult
+  deriving Repr, BEq
 
 /--
 Convert Lean Float to SMT string representation.
@@ -58,8 +63,8 @@ Convert Lean Float to SMT string representation.
 def floatToSMT (f : Float) : String :=
   if f == 0.0 then "0.0"
   else if f == 1.0 then "1.0"
-  else if f == Float.negInf then "-oo"
-  else if f == Float.inf then "+oo"
+  else if f == (-1.0 / 0.0) then "-oo"
+  else if f == (1.0 / 0.0) then "+oo"
   else s!"{f}"
 
 /--
@@ -214,10 +219,10 @@ def generateBatchProofs
   let mut results := []
 
   for (propName, ε, δ) in properties do
-    let result := match propName with
+    let result ← match propName with
       | "robustness" => generateRobustnessProof tr ε δ config
       | "causal_masking" => generateCausalMaskingProof tr config
-      | _ => return SMTResult.error s!"Unknown property: {propName}"
+      | _ => pure (SMTResult.error s!"Unknown property: {propName}")
     results := results ++ [(propName, result)]
 
   return results

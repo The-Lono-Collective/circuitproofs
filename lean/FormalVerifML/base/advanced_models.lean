@@ -209,6 +209,7 @@ structure AttentionHead where
   W_k : Array (Array Float)  -- Key projection
   W_v : Array (Array Float)  -- Value projection
   W_o : Array (Array Float)  -- Output projection
+  deriving Inhabited
 
 /--
 Structure for a complete Transformer model with production-ready features

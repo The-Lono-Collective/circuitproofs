@@ -143,10 +143,12 @@ def attentionFairness (attention_fn : Array (Array Float) → Array (Array Float
          (attn2.foldl (λ acc row => acc ++ row) #[]) < 0.1
 
 /--
-Memory efficiency property:
+Memory efficiency property for attention mechanisms:
 The attention mechanism should not consume excessive memory for long sequences.
+Note: This property is specifically for attention functions. For transformer model
+memory efficiency, see `memoryEfficient` in `memory_optimized_models.lean`.
 --/
-def memoryEfficient (_attention_fn : Array (Array Float) → Array (Array Float)) : Prop :=
+def attentionMemoryEfficient (_attention_fn : Array (Array Float) → Array (Array Float)) : Prop :=
   ∀ (x : Array (Array Float)),
   let seq_len := x.size
   let d_model := if seq_len > 0 then x[0]!.size else 0

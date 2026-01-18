@@ -41,21 +41,21 @@ Extract patches from image and flatten them.
 --/
 def extractPatches
   (image : Array (Array (Array Float))) -- [height, width, channels]
-  (patchSize : Nat) : Array (Array Float) :=
+  (patchSize : Nat) : Array (Array Float) := Id.run do
   let height := image.size
-  let width := if height > 0 then image[0]!.size else 0
-  let channels := if width > 0 then image[0]![0]!.size else 0
+  let width := if height > 0 then (image[0]!).size else 0
+  let channels := if width > 0 then ((image[0]!)[0]!).size else 0
 
   let numPatchesH := height / patchSize
   let numPatchesW := width / patchSize
   let patchDim := patchSize * patchSize * channels
 
-  let mutable patches := Array.mkEmpty (numPatchesH * numPatchesW)
+  let mut patches := Array.mkEmpty (numPatchesH * numPatchesW)
 
   for i in List.range numPatchesH do
     for j in List.range numPatchesW do
-      let mutable patch := Array.mkEmpty patchDim
-      let patchIdx := 0
+      let mut patch := Array.mkEmpty patchDim
+      let _patchIdx := 0
 
       for pi in List.range patchSize do
         for pj in List.range patchSize do
@@ -64,11 +64,11 @@ def extractPatches
 
           if imgI < height ∧ imgJ < width then
             for c in List.range channels do
-              patch := patch.push (image.getD imgI (Array.mkEmpty 0).getD imgJ (Array.mkEmpty 0).getD c 0.0)
+              patch := patch.push (((image.getD imgI (Array.mkEmpty 0)).getD imgJ (Array.mkEmpty 0)).getD c 0.0)
 
       patches := patches.push patch
 
-  patches
+  return patches
 
 /--
 Apply patch embeddings to flattened patches.
@@ -78,7 +78,7 @@ def applyPatchEmbeddings
   (patchEmbeddings : Array (Array Float)) : Array (Array Float) :=
   patches.map (λ patch =>
     if patch.size == patchEmbeddings[0]!.size then
-      matrixMul #[patch] patchEmbeddings[0]!
+      (matrixMul #[patch] patchEmbeddings).getD 0 (Array.mkEmpty 0)
     else
       Array.mkEmpty 0
   )
@@ -86,7 +86,7 @@ def applyPatchEmbeddings
 /--
 Vision Transformer evaluation.
 --/
-def evalVisionTransformer (vit : VisionTransformer) (image : Array (Array (Array Float))) : Array Float :=
+def evalVisionTransformer (vit : VisionTransformer) (image : Array (Array (Array Float))) : Array Float := Id.run do
   -- Extract patches
   let patches := extractPatches image vit.patchSize
 
@@ -106,13 +106,13 @@ def evalVisionTransformer (vit : VisionTransformer) (image : Array (Array (Array
     sequence
 
   -- Apply transformer layers
-  let mutable hidden := sequence
+  let mut hidden := sequence
   for layerIdx in List.range vit.numLayers do
     let heads := vit.attentionHeads.getD layerIdx (Array.mkEmpty 0)
     let ln1 := vit.layerNorms1.getD layerIdx (Array.mkEmpty 0, Array.mkEmpty 0)
     let ln2 := vit.layerNorms2.getD layerIdx (Array.mkEmpty 0, Array.mkEmpty 0)
     let ff1 := vit.ffWeights1.getD layerIdx (Array.mkEmpty 0, Array.mkEmpty 0)
-    let ff2 := vit.ffWeights2.getD layerIdx (Array.mkEmpty 0, Array.mkEmpty 0)
+    let _ff2 := vit.ffWeights2.getD layerIdx (Array.mkEmpty 0, Array.mkEmpty 0)
 
     -- Self-attention
     let attnOut := multiHeadAttention heads hidden
@@ -147,7 +147,7 @@ def evalVisionTransformer (vit : VisionTransformer) (image : Array (Array (Array
     sum.map (λ x => x / count)
 
   -- Apply output projection for classification
-  evalLinear vit.outputProjection.1 vit.outputProjection.2 finalRepresentation
+  return evalLinear vit.outputProjection.1 vit.outputProjection.2 finalRepresentation
 
 /--
 Swin Transformer structure for hierarchical vision processing.
@@ -186,14 +186,14 @@ Window-based attention for Swin Transformer.
 def windowAttention
   (heads : Array AttentionHead)
   (x : Array (Array Float))
-  (windowSize : Nat) : Array (Array Float) :=
+  (_windowSize : Nat) : Array (Array Float) :=
   -- Simplified window attention implementation
   multiHeadAttention heads x
 
 /--
 Swin Transformer evaluation.
 --/
-def evalSwinTransformer (swin : SwinTransformer) (image : Array (Array (Array Float))) : Array Float :=
+def evalSwinTransformer (swin : SwinTransformer) (image : Array (Array (Array Float))) : Array Float := Id.run do
   -- Extract patches
   let patches := extractPatches image swin.patchSize
 
@@ -204,13 +204,13 @@ def evalSwinTransformer (swin : SwinTransformer) (image : Array (Array (Array Fl
   let sequence := embeddedPatches.zipWith (λ emb pos => emb.zipWith (· + ·) pos) swin.positionalEmbeddings
 
   -- Apply transformer layers with window attention
-  let mutable hidden := sequence
+  let mut hidden := sequence
   for layerIdx in List.range (swin.numLayers.foldl (· + ·) 0) do
     let heads := swin.attentionHeads.getD layerIdx (Array.mkEmpty 0)
     let ln1 := swin.layerNorms1.getD layerIdx (Array.mkEmpty 0, Array.mkEmpty 0)
     let ln2 := swin.layerNorms2.getD layerIdx (Array.mkEmpty 0, Array.mkEmpty 0)
     let ff1 := swin.ffWeights1.getD layerIdx (Array.mkEmpty 0, Array.mkEmpty 0)
-    let ff2 := swin.ffWeights2.getD layerIdx (Array.mkEmpty 0, Array.mkEmpty 0)
+    let _ff2 := swin.ffWeights2.getD layerIdx (Array.mkEmpty 0, Array.mkEmpty 0)
 
     -- Window attention
     let attnOut := windowAttention heads hidden swin.windowSize
@@ -236,7 +236,7 @@ def evalSwinTransformer (swin : SwinTransformer) (image : Array (Array (Array Fl
     sum.map (λ x => x / count)
 
   -- Apply output projection
-  evalLinear swin.outputProjection.1 swin.outputProjection.2 finalRepresentation
+  return evalLinear swin.outputProjection.1 swin.outputProjection.2 finalRepresentation
 
 /--
 Multi-modal transformer for vision-language tasks.
@@ -275,7 +275,7 @@ Multi-modal transformer evaluation.
 def evalMultiModalTransformer
   (mmt : MultiModalTransformer)
   (image : Array (Array (Array Float)))
-  (textTokens : Array Nat) : Array Float :=
+  (textTokens : Array Nat) : Array Float := Id.run do
   -- Process image
   let imagePatches := extractPatches image mmt.patchSize
   let imageEmbeddings := applyPatchEmbeddings imagePatches mmt.visionPatchEmbeddings
@@ -290,13 +290,13 @@ def evalMultiModalTransformer
   let sequence := combinedSequence.zipWith (λ emb pos => emb.zipWith (· + ·) pos) mmt.positionalEmbeddings
 
   -- Apply transformer layers
-  let mutable hidden := sequence
+  let mut hidden := sequence
   for layerIdx in List.range mmt.numLayers do
     let heads := mmt.attentionHeads.getD layerIdx (Array.mkEmpty 0)
     let ln1 := mmt.layerNorms1.getD layerIdx (Array.mkEmpty 0, Array.mkEmpty 0)
     let ln2 := mmt.layerNorms2.getD layerIdx (Array.mkEmpty 0, Array.mkEmpty 0)
     let ff1 := mmt.ffWeights1.getD layerIdx (Array.mkEmpty 0, Array.mkEmpty 0)
-    let ff2 := mmt.ffWeights2.getD layerIdx (Array.mkEmpty 0, Array.mkEmpty 0)
+    let _ff2 := mmt.ffWeights2.getD layerIdx (Array.mkEmpty 0, Array.mkEmpty 0)
 
     -- Cross-modal attention
     let attnOut := multiHeadAttention heads hidden
@@ -322,7 +322,7 @@ def evalMultiModalTransformer
     sum.map (λ x => x / count)
 
   -- Apply output projection
-  evalLinear mmt.outputProjection.1 mmt.outputProjection.2 finalRepresentation
+  return evalLinear mmt.outputProjection.1 mmt.outputProjection.2 finalRepresentation
 
 /--
 Vision model properties for verification.
