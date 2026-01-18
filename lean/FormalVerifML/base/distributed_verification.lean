@@ -7,6 +7,16 @@ namespace FormalVerifML
 -- Provide Inhabited instance for SMTResult if not already defined
 instance : Inhabited SMTResult := ⟨SMTResult.unknown "Default"⟩
 
+-- Provide BEq instance for SMTResult
+instance : BEq SMTResult where
+  beq a b := match a, b with
+    | SMTResult.sat m1, SMTResult.sat m2 => m1 == m2
+    | SMTResult.unsat c1, SMTResult.unsat c2 => c1 == c2
+    | SMTResult.timeout, SMTResult.timeout => true
+    | SMTResult.unknown r1, SMTResult.unknown r2 => r1 == r2
+    | SMTResult.error e1, SMTResult.error e2 => e1 == e2
+    | _, _ => false
+
 /--
 Distributed verification configuration.
 --/
@@ -73,11 +83,7 @@ def distributeTasks
   (tasks : List VerificationTask)
   (config : DistributedConfig) : Array (List VerificationTask) := Id.run do
   let numNodes := config.numNodes
-  let mut distribution := Array.mkEmpty numNodes
-
-  -- Initialize empty task lists for each node
-  for _i in List.range numNodes do
-    distribution := distribution.push []
+  let mut distribution : Array (List VerificationTask) := Array.replicate numNodes []
 
   -- Distribute tasks using round-robin with priority consideration
   let sortedTasks := (tasks.toArray.qsort (fun a b => a.priority > b.priority)).toList
@@ -94,32 +100,23 @@ def distributeTasks
 /--
 Split a complex SMT formula into sub-formulas.
 --/
-def splitFormula (formula : SMTFormula) (numParts : Nat) : Array SMTFormula := Id.run do
+def splitFormula (formula : SMTFormula) (numParts : Nat) : Array SMTFormula :=
   -- Simplified formula splitting - in practice, this would be more sophisticated
-  let mut parts := Array.mkEmpty numParts
-
   -- For now, just replicate the formula (placeholder implementation)
-  for _i in List.range numParts do
-    parts := parts.push formula
-
-  return parts
+  Array.replicate numParts formula
 
 /--
 Shard a large verification problem across multiple nodes.
 --/
 def shardVerificationProblem
   (formula : SMTFormula)
-  (config : DistributedConfig) : Array SMTFormula := Id.run do
+  (config : DistributedConfig) : Array SMTFormula :=
   if config.useProofSharding then
     -- Split formula into sub-formulas based on structure
-    let subFormulas := splitFormula formula config.numNodes
-    return subFormulas
+    splitFormula formula config.numNodes
   else
     -- Replicate formula across all nodes
-    let mut shards := Array.mkEmpty config.numNodes
-    for _i in List.range config.numNodes do
-      shards := shards.push formula
-    return shards
+    Array.replicate config.numNodes formula
 
 /--
 Execute verification task on a single node.
@@ -137,7 +134,7 @@ def executeNodeTask
       let δ := task.parameters.find? (λ p => p.1 == "delta") |>.map (·.2) |>.getD 0.05
       attentionRobustnessFormula (λ x => x) ε δ  -- Placeholder attention function
     | "causal_masking" =>
-      causalMaskingFormula (λ (tokens : Array Float) => tokens)  -- Placeholder function
+      causalMaskingFormula (λ (tokens : Array Nat) => tokens.map (fun n => Float.ofNat n))  -- Placeholder function
     | "memory_efficiency" =>
       SMTFormula.const 1.0  -- Placeholder formula
     | _ => SMTFormula.const 0.0
@@ -248,11 +245,7 @@ def balanceLoad
   (config : DistributedConfig) : Array (List VerificationTask) := Id.run do
   if config.enableLoadBalancing then
     -- Simple load balancing based on task priority and node capacity
-    let mut distribution := Array.mkEmpty nodeCapacities.size
-
-    -- Initialize empty task lists
-    for _i in List.range nodeCapacities.size do
-      distribution := distribution.push []
+    let mut distribution : Array (List VerificationTask) := Array.replicate nodeCapacities.size []
 
     -- Sort tasks by priority (highest first)
     let sortedTasks := (tasks.toArray.qsort (fun a b => a.priority > b.priority)).toList
