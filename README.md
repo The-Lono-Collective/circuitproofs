@@ -1,5 +1,6 @@
 # LeanVerifier: Formal Verification of Machine Learning Models
 
+[![CI](https://github.com/tektonics/circuitproofs/actions/workflows/lean_ci.yml/badge.svg)](https://github.com/tektonics/circuitproofs/actions/workflows/lean_ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
 [![Lean 4](https://img.shields.io/badge/Lean-4-green.svg)](https://leanprover.github.io/)
