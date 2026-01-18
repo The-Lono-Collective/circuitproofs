@@ -267,7 +267,7 @@ theorem sparse_more_efficient (circuit : Circuit) (denseParams : Nat) :
   circuitNumParameters circuit < denseParams →
   circuitSparsity circuit > 0.5 →
   True := by
-  intros; trivial
+  simp
   -- In practice, would prove runtime or memory bounds
 
 end FormalVerifML
