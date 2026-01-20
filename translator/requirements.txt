@@ -5,6 +5,8 @@ argparse
 torch
 gunicorn
 transformers
+huggingface_hub
+datasets
 numpy
 scikit-learn
 matplotlib

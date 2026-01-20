@@ -1,5 +1,10 @@
 # Quick Start: Certified Proof-Carrying Circuits
 
+> **⚠️ WORK IN PROGRESS** — The pipeline runs but has critical limitations:
+> - `_evaluate_circuit()` is a **stub** — error bounds are inaccurate
+> - Core Lean proofs have **`sorry`** — no actual verification yet
+> - See [CERTIFIED_CIRCUITS.md](CERTIFIED_CIRCUITS.md) for full status
+
 Get started with circuit extraction and verification in 5 minutes!
 
 ## Prerequisites

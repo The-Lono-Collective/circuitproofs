@@ -1,229 +1,302 @@
 # CLAUDE.md
 
-Guidance for Claude Code when working with this repository.
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Tool Usage
+## Project Focus
 
-### MCP Servers and Plugins
+**Target:** [Martian Interpretability Challenge](https://withmartian.com/prize) ($1M prize pool)
 
-Use these proactively without requiring explicit user requests:
+**Goal:** Prove extracted circuits match formal specifications — not correlation, but mathematical certainty.
 
-| Tool | When to Use |
-|------|-------------|
-| **Context7 MCP** | Library/API docs, code examples, setup steps, framework patterns |
-| **Serena** | Semantic code exploration, finding symbols, tracing references, understanding architecture |
-| **GitHub MCP** | PR management, issue tracking, repository operations |
-| **Linear** | Project/issue tracking when Linear is used for project management |
-| **Greptile** | Code search across repos, finding patterns, code review assistance |
+**Status:** Work in Progress. See [ROADMAP.md](ROADMAP.md) for current state.
 
-### Skills (invoke via `/skill-name` or Skill tool)
+---
 
-| Skill | When to Use |
-|-------|-------------|
-| **pr-review-toolkit:review-pr** | Before merging any PR - comprehensive review |
-| **pr-review-toolkit:code-reviewer** | After completing features, before committing |
-| **superpowers:brainstorming** | Before any creative work or new feature implementation |
-| **superpowers:systematic-debugging** | When encountering bugs or test failures |
-| **code-review:code-review** | Quick code review of changes |
-| **commit-commands:commit** | When ready to commit changes |
+## Current Priorities
 
-**Rule:** Before any PR merge or significant code completion, run a code review skill.
+### In Scope (Work on These)
 
-### Git Workflow
+| Priority | Area | Focus |
+|----------|------|-------|
+| **P0** | `extraction/circuit_extractor.py` | Fix `_evaluate_circuit()` stub |
+| **P0** | `lean/FormalVerifML/base/circuit_models.lean` | Complete `property_transfer`, `lipschitz_composition_bound` |
+| **P0** | `lean/FormalVerifML/proofs/circuit_proofs.lean` | Complete `sorry` theorems |
+| **P0** | `benchmarks/verina/` | Implement MBPP benchmark runner |
+| **P1** | Distributed extraction | Adapt for 70B code LLMs |
 
-**Always pull before pushing** to avoid divergent branches and ensure you have the latest changes:
+### Out of Scope (Do NOT Work on These)
 
-```bash
-# Before making changes
-git pull origin <branch-name>
+| Area | Reason |
+|------|--------|
+| `webapp/` | Web UI deprioritized |
+| Vision models (ViT, CLIP) | Not code generation |
+| Enterprise features (auth, audit) | Not needed for challenge |
+| `translator/test_huggingface_models.py` | Vision model tests |
+| `translator/test_enterprise_features.py` | Enterprise tests |
 
-# Before pushing
-git pull origin <branch-name>  # Fetch and merge any new commits
-git push origin <branch-name>
-```
+---
 
-This prevents merge conflicts and ensures PRs reflect the current state of the codebase.
+## Critical Blockers
+
+### 1. `_evaluate_circuit()` Stub
+
+**Location:** `extraction/circuit_extractor.py:340-353`
+
+**Problem:** Returns original model output instead of sparse circuit output. Error bounds are meaningless.
+
+**Fix Required:** Build and evaluate masked/sparse network from circuit components.
+
+### 2. Core Lean Theorems
+
+**`property_transfer`** at `lean/FormalVerifML/base/circuit_models.lean:217`
+- Proves properties on circuits transfer to original model
+- This is the core value proposition
+
+**`lipschitz_composition_bound`** at `lean/FormalVerifML/base/circuit_models.lean:203`
+- Justifies error bound computation
+
+### 3. Lipschitz Bound Tightness
+
+**Risk:** Bounds can explode and become vacuous.
+
+**Validation:** `theoretical_bound / empirical_max_error` must be < 100x.
+
+---
 
 ## Development Philosophy
 
 ### Test-Driven Development (TDD)
 
-**All code changes MUST follow TDD:**
+**All code changes MUST follow TDD principles:**
 
-1. **Red**: Write a failing test that defines expected behavior
-2. **Green**: Write minimum code to make the test pass
+1. **Red**: Write a failing test first
+2. **Green**: Write minimum code to pass
 3. **Refactor**: Clean up while keeping tests passing
 
+**For Python:**
 ```bash
-# Python workflow
-python -m pytest translator/tests/test_new_feature.py -v  # 1. See it fail
-# 2. Implement feature
-python -m pytest translator/tests/ -v                      # 3. See it pass, refactor
-
-# Lean workflow
-lake build  # 1. See theorem fail (or use sorry placeholder)
-# 2. Implement proof
-lake build  # 3. See it compile, refactor
+python -m pytest translator/tests/ -v
 ```
 
-### Production Code Standards
-
-| Requirement | Standard |
-|-------------|----------|
-| Function length | Max 50 lines (excluding docstrings) |
-| File length | Max 500 lines (split into modules) |
-| Type hints | Required for all function signatures |
-| Docstrings | Required: summary, params, returns, raises |
-| Error handling | No bare `except:`, meaningful messages |
-| Naming | `snake_case` (Python funcs/vars), `camelCase` (Lean), `PascalCase` (classes) |
-
-### Lean Verification Guidelines
-
-**Never write vacuous proofs.** Theorems must verify actual properties, not just type-check.
-
-```lean
--- BAD: Proves nothing (vacuous)
-theorem foo : True :=
-  let _ := someValue
-  trivial
-
--- GOOD: Verifies actual property
-theorem foo : circuitWellFormed myCircuit = true := by rfl
-
--- GOOD: Asserts condition holds
-theorem bar : True :=
-  let config := myConfig
-  let _ : config.enabled = true := by native_decide
-  trivial
+**For Lean:**
+```bash
+lake build
 ```
 
-**Proof methods by strength:**
-1. `rfl` - Definitional equality (strongest, computed at compile-time)
-2. `native_decide` - Decidable propositions (compile-time evaluation)
-3. `decide` - Decision procedures
-4. `sorry` - Placeholder only (**must have tracking issue**)
+### Production-Ready Code Standards
 
-**File organization:**
-- `formal_verif_ml.lean` - Library theorems and imports
-- `Main.lean` - CLI executable (separate from library code)
-- `proofs/*.lean` - Detailed mathematical proofs
+1. **Clean Code**: Single responsibility, DRY, KISS
+2. **Documentation**: Docstrings for all public functions
+3. **Type Safety**: Type hints for Python, explicit annotations for Lean
+4. **Error Handling**: Specific exceptions, meaningful messages
 
-## Project Overview
-
-**LeanVerifier** formally verifies ML models using Lean 4. Key innovation: **Certified Proof-Carrying Circuits** - extracting sparse subgraphs from neural networks and proving their properties.
-
-### Three-Component Pipeline
-
-1. **Python Extraction Layer** (`extraction/`, `translator/`)
-   - Extracts circuits from PyTorch using BlockCert-style pruning
-   - Translates models to JSON intermediate format
-   - Generates Lean 4 code from JSON
-
-2. **Lean 4 Verification Core** (`lean/FormalVerifML/`)
-   - `base/` - Core definitions (circuits, models, properties)
-   - `generated/` - Auto-generated model definitions
-   - `proofs/` - Verification proof scripts
-
-3. **Web Interface** (`webapp/`) - Flask UI for model upload and visualization
-
-### Key Data Flow
-
-```
-PyTorch Model → JSON → Lean Definition → Formal Proof → Certificate
-     ↓             ↓          ↓              ↓
-  export_from  generate   lake build    verification
-  _pytorch.py  _lean_model              results
-```
+---
 
 ## Development Commands
 
+### Building and Testing
+
 ```bash
-# Lean build and run
-lake build                       # Build all, run verification
-lake exe formal_verif_ml_exe     # Run verification summary
-lake clean                       # Clean build artifacts
+# Build Lean code
+lake build
 
-# Python tests
-python -m pytest translator/tests/ -v --cov=translator
-python translator/run_comprehensive_tests.py
+# Run Python tests
+python -m pytest translator/tests/ -v
 
-# Translation pipeline
-python translator/export_from_pytorch.py --model_path <path> --output_path model.json
-python translator/generate_lean_model.py --model_json model.json --output_lean <path>.lean
-
-# Circuit extraction
-python extraction/circuit_extractor.py
-python translator/circuit_to_lean.py --circuit_json circuit.json --output_dir <dir>
-
-# Web/Docker
-python webapp/app.py                                    # Dev server
-docker build -t circuitproofs . && docker run -p 5000:5000 circuitproofs
+# Run end-to-end demo (uses stubs)
+python examples/end_to_end_pipeline.py
 ```
 
-## Critical Architecture Notes
+### Circuit Extraction
 
-### Sparse vs Dense Representations
+```bash
+# Extract circuit (note: _evaluate_circuit is stub)
+python -c "
+from extraction.circuit_extractor import CircuitExtractor
+# See examples/end_to_end_pipeline.py for usage
+"
+```
 
-Circuits use **sparse edge-based representations** for tractability:
-- Dense matrix: O(n²) verification complexity
-- Sparse edges: O(k) complexity where k = non-zero weights
+### Translation
 
-Always use `List CircuitEdge` (in `circuit_models.lean`), not dense arrays.
+```bash
+# Translate circuit JSON to Lean
+python translator/circuit_to_lean.py \
+    --circuit_json circuit.json \
+    --output_dir lean/FormalVerifML/generated
+```
 
-### Error Bound Certification
+---
 
-BlockCert-style error bounds use **Lipschitz composition**:
-- Each component has local error ε_i and Lipschitz constant L_i
-- Global bound: `‖F̂(x) - F(x)‖ ≤ Σᵢ (εᵢ ∏ⱼ₍ⱼ>ᵢ₎ Lⱼ)`
+## Key Files
 
-See `extraction/circuit_extractor.py:compute_error_bounds()`.
+### Must Modify (P0)
 
-### Model Type Hierarchy
+| File | Issue | Action |
+|------|-------|--------|
+| `extraction/circuit_extractor.py:340` | `_evaluate_circuit()` stub | Implement sparse evaluation |
+| `lean/FormalVerifML/base/circuit_models.lean:203` | `sorry` | Complete `lipschitz_composition_bound` |
+| `lean/FormalVerifML/base/circuit_models.lean:217` | `sorry` | Complete `property_transfer` |
+| `lean/FormalVerifML/proofs/circuit_proofs.lean` | Multiple `sorry` | Complete all proofs |
 
-| Level | Types | Location |
-|-------|-------|----------|
-| Basic | LinearModel, DecisionTree | `definitions.lean` |
-| Neural | NeuralNet, LayerType | `definitions.lean` |
-| Transformer | MultiHeadAttention, TransformerBlock | `advanced_models.lean` |
-| Vision | VisionTransformer, PatchEmbedding | `vision_models.lean` |
-| Circuits | SparseCircuit, CircuitComponent | `circuit_models.lean` |
+### Must Create (P0)
 
-### Important Files
+| File | Purpose |
+|------|---------|
+| `benchmarks/verina/fetch_dataset.py` | Download MBPP-Lean dataset |
+| `benchmarks/verina/run_benchmark.py` | Run extraction + verification |
+| `scripts/validate_tightness.py` | Check Lipschitz bound quality |
 
-- `lakefile.lean` - Package structure, dependencies (mathlib4)
-- `lean-toolchain` - Lean version pin (v4.18.0-rc1, don't change without testing)
-- `formal_verif_ml.lean` - Main entry point, imports all modules
-- `Main.lean` - Executable entry point (separate from library)
+### Can Ignore
+
+| File/Directory | Reason |
+|----------------|--------|
+| `webapp/` | Deprioritized |
+| `lean/FormalVerifML/base/vision_models.lean` | Not in scope |
+| `lean/FormalVerifML/base/enterprise_features.lean` | Not in scope |
+
+---
+
+## Architecture Overview
+
+```
+Code LLM solves MBPP problem
+         ↓
+Component A: Extract circuit (extraction/)
+         ↓
+Component B: Translate to Lean (translator/)
+         ↓
+Component C: Prove matches spec (lean/)
+         ↓
+Certificate: "Circuit implements algorithm within ε"
+```
+
+### Component Status
+
+| Component | Status | Location |
+|-----------|--------|----------|
+| A: Extraction | ⚠️ 70% (stub) | `extraction/circuit_extractor.py` |
+| B: Translation | ✅ 85% | `translator/circuit_to_lean.py` |
+| C: Verification | ❌ 40% (sorry) | `lean/FormalVerifML/` |
+| MBPP Benchmark | ❌ 10% | `benchmarks/verina/` |
+
+---
+
+## Target Models
+
+| Model | Size | Purpose |
+|-------|------|---------|
+| DeepSeek-Coder-1.3B | 1.3B | Fast iteration |
+| StarCoder-7B | 7B | Main experiments |
+| CodeLlama-34B | 34B | Generalization |
+| CodeLlama-70B | 70B | Scale demonstration |
+
+---
+
+## Lean 4 Notes
+
+### Version
+
+The project uses **Lean 4 v4.18.0-rc1** (specified in `lean-toolchain`). Do not change without testing all proofs.
+
+### Key Structures
+
+```lean
+-- Circuit with error bounds
+structure Circuit where
+  components : List CircuitComponent
+  errorBound : ErrorBound
+  certificateHash : String
+
+-- Sparse edge representation
+structure CircuitEdge where
+  source : Nat
+  target : Nat
+  weight : Float
+```
+
+### Incomplete Theorems (Need Lean Expert)
+
+1. `property_transfer` - Core value proposition
+2. `lipschitz_composition_bound` - Error bound justification
+3. `circuit_robustness_example` - Robustness proof
+4. 13 other theorems with `sorry`
+
+See [docs/PROOF_ROADMAP.md](docs/PROOF_ROADMAP.md) for full list.
+
+---
 
 ## Common Patterns
 
-### Adding a Verification Property
+### Adding to MBPP Benchmark
 
-1. Write theorem statement first (TDD)
-2. Define property in `ml_properties.lean`
-3. Add proof in `proofs/`
-4. Import in `formal_verif_ml.lean`
-5. Run `lake build`
+```python
+# benchmarks/verina/run_benchmark.py (to be implemented)
 
-### Adding a Model Architecture
+def run_single_problem(problem_id: str, model_name: str) -> BenchmarkResult:
+    """
+    1. Load MBPP problem and Lean spec
+    2. Have model generate solution
+    3. Extract circuit from solution
+    4. Translate to Lean
+    5. Attempt to prove matches spec
+    """
+    pass
+```
 
-1. Write test cases first (TDD)
-2. Add parsing to `export_from_pytorch.py`
-3. Add Lean definitions to appropriate base file
-4. Update `generate_lean_model.py`
-5. Run full test suite
+### Fixing `_evaluate_circuit()`
 
-### Debugging Lean
+```python
+# extraction/circuit_extractor.py
 
-- `#check expr` - Type check expression
-- `#eval expr` - Evaluate expression
-- Check `generated/` for issues with auto-generated code
-- Verify JSON is well-formed before Lean generation
+def _evaluate_circuit(self, circuit_components, inputs):
+    """
+    REQUIRED: Build sparse model and evaluate.
 
-## Before Committing
+    1. Create new model with only circuit edges
+    2. Apply masks to original weights
+    3. Forward pass through sparse model
+    4. Return sparse model output (NOT original model)
+    """
+    # TODO: Implement this properly
+    pass
+```
 
-- [ ] `lake build` passes (no `sorry` without tracking issue)
-- [ ] `python -m pytest` passes
-- [ ] New code has corresponding tests
-- [ ] Type hints and docstrings complete
-- [ ] No debug code or print statements
+### Validating Lipschitz Tightness
+
+```python
+# scripts/validate_tightness.py (to be created)
+
+def validate_tightness(circuit, test_data, model) -> float:
+    """
+    Check if theoretical bounds are reasonable.
+
+    Returns ratio: theoretical_bound / empirical_max_error
+    Target: ratio < 100x
+    """
+    pass
+```
+
+---
+
+## Code Review Checklist
+
+Before committing, verify:
+
+- [ ] Relates to Martian challenge focus (code LLMs, circuits, proofs)
+- [ ] All tests pass (`python -m pytest` and `lake build`)
+- [ ] New code has tests
+- [ ] Type hints/annotations complete
+- [ ] Docstrings present
+- [ ] No `sorry` added without justification
+- [ ] No debug code left in
+- [ ] Updates ROADMAP.md if completing a task
+
+---
+
+## References
+
+- [Martian Interpretability Challenge](https://withmartian.com/prize)
+- [VERINA/MBPP-Lean Benchmark](https://github.com/sunblaze-ucb/verina)
+- [Lean 4 Documentation](https://leanprover.github.io/lean4/doc/)
+- [Mathlib4 Docs](https://leanprover-community.github.io/mathlib4_docs/)
