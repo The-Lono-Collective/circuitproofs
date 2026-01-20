@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Target:** [Martian Interpretability Challenge](https://withmartian.com/prize) ($1M prize pool)
 
-**Goal:** Prove extracted circuits match formal specifications — not correlation, but mathematical certainty.
+**Goal:** Prove extracted circuits match formal specifications with explicit demand for mathematical certainty.
 
 **Status:** Work in Progress. See [ROADMAP.md](ROADMAP.md) for current state.
 
@@ -14,7 +14,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Current Priorities
 
-### In Scope (Work on These)
+### In Scope
 
 | Priority | Area | Focus |
 |----------|------|-------|
@@ -24,7 +24,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | **P0** | `benchmarks/verina/` | Implement MBPP benchmark runner |
 | **P1** | Distributed extraction | Adapt for 70B code LLMs |
 
-### Out of Scope (Do NOT Work on These)
+### Out of Scope
 
 | Area | Reason |
 |------|--------|
@@ -50,7 +50,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **`property_transfer`** at `lean/FormalVerifML/base/circuit_models.lean:217`
 - Proves properties on circuits transfer to original model
-- This is the core value proposition
+- Core value proposition
 
 **`lipschitz_composition_bound`** at `lean/FormalVerifML/base/circuit_models.lean:203`
 - Justifies error bound computation
@@ -67,21 +67,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Test-Driven Development (TDD)
 
-**All code changes MUST follow TDD principles:**
+**All code changes MUST follow TDD principles: Red -> Green -> Refactor**
 
 1. **Red**: Write a failing test first
 2. **Green**: Write minimum code to pass
 3. **Refactor**: Clean up while keeping tests passing
-
-**For Python:**
-```bash
-python -m pytest translator/tests/ -v
-```
-
-**For Lean:**
-```bash
-lake build
-```
 
 ### Production-Ready Code Standards
 
@@ -100,17 +90,20 @@ lake build
 # Build Lean code
 lake build
 
-# Run Python tests
-python -m pytest translator/tests/ -v
+# Basic python tests
+python -m pytest translator/ -v
 
-# Run end-to-end demo (uses stubs)
+# Comprehensive python tests
+python -m pytest translator/run_comprehensive_tests.py
+
+# Run end-to-end demo
 python examples/end_to_end_pipeline.py
 ```
 
 ### Circuit Extraction
 
 ```bash
-# Extract circuit (note: _evaluate_circuit is stub)
+# Extract circuit
 python -c "
 from extraction.circuit_extractor import CircuitExtractor
 # See examples/end_to_end_pipeline.py for usage
