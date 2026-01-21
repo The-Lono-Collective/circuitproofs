@@ -1,26 +1,56 @@
-# Lean build artifacts
-.lake/
-
 # Python
 __pycache__/
 *.py[cod]
 *$py.class
-.venv/
-venv/
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
 *.egg-info/
+.installed.cfg
+*.egg
 
-# Test results (generated)
-test_results_*.json
-*_test_report.txt
+# Virtual environments
+.env
+.venv
+env/
+venv/
+ENV/
 
-# IDE/Editor
-.claude/
-.serena/
-.vscode/
+# IDE
 .idea/
+.vscode/
 *.swp
 *.swo
+*~
 
-# Build artifacts
-build_failure.txt
-*.olean
+# Jupyter
+.ipynb_checkpoints/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Lean build artifacts (keep .olean in cache)
+.lake/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Project-specific
+*.npz
+extracted_circuit.json
+output/
+circuit_output/
