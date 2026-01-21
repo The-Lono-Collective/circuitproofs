@@ -448,9 +448,15 @@ class BlockCertifier:
                 if self.activation == "relu":
                     return torch.relu(x)
                 elif self.activation == "gelu":
-                    return torch.nn.functional.gelu(x)
+                    # Use Tanh approximation for auto-LiRPA compatibility
+                    # GELU(x) ≈ 0.5 * x * (1 + tanh(sqrt(2/π) * (x + 0.044715 * x³)))
+                    import math
+                    return 0.5 * x * (1 + torch.tanh(
+                        math.sqrt(2 / math.pi) * (x + 0.044715 * x ** 3)
+                    ))
                 elif self.activation in ("silu", "swiglu"):
-                    return torch.nn.functional.silu(x)
+                    # SiLU = x * sigmoid(x), supported by auto-LiRPA via sigmoid
+                    return x * torch.sigmoid(x)
                 else:
                     return x
 
