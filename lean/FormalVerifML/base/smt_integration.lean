@@ -63,8 +63,8 @@ Convert Lean Float to SMT string representation.
 def floatToSMT (f : Float) : String :=
   if f == 0.0 then "0.0"
   else if f == 1.0 then "1.0"
-  else if f == (-1.0 / 0.0) then "-oo"
-  else if f == (1.0 / 0.0) then "+oo"
+  else if f == -Float.inf then "-oo"
+  else if f == Float.inf then "+oo"
   else s!"{f}"
 
 /--
@@ -92,6 +92,9 @@ def formulaToSMTLib : SMTFormula → String
   | SMTFormula.implies left right => s!"(implies {formulaToSMTLib left} {formulaToSMTLib right})"
   | SMTFormula.forall var body => s!"(forall (({var} Real)) {formulaToSMTLib body})"
   | SMTFormula.exists var body => s!"(exists (({var} Real)) {formulaToSMTLib body})"
+
+instance : ToString SMTFormula where
+  toString := formulaToSMTLib
 
 /--
 Generate SMT formula for attention robustness property.

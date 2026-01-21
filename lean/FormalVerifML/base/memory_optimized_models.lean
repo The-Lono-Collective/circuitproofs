@@ -232,7 +232,7 @@ def estimateMemoryUsage (tr : MemoryOptimizedTransformer) : Nat :=
 /--
 Memory optimization properties for verification.
 --/
-def memoryEfficient (tr : MemoryOptimizedTransformer) : Prop :=
+def memoryEfficientTransformer (tr : MemoryOptimizedTransformer) : Prop :=
   estimateMemoryUsage tr ≤ tr.maxMemoryMB * 1024 * 1024
 
 def sparseAttentionValid (tr : MemoryOptimizedTransformer) : Prop :=

@@ -19,11 +19,11 @@ Adds `pad` rows at the top and bottom, and `pad` zeros to the left and right of 
 def padMatrix (input : Array (Array Float)) (pad : Nat) : Array (Array Float) :=
   let H := input.size
   let W := if H > 0 then (input[0]!).size else 0
-  let paddedRow := Array.replicate (W + 2 * pad) 0.0
-  let topBottom := Array.replicate pad paddedRow
+  let paddedRow := Array.mkArray (W + 2 * pad) 0.0
+  let topBottom := Array.mkArray pad paddedRow
   let middle := input.map (λ row =>
-    let leftPad  := Array.replicate pad 0.0
-    let rightPad := Array.replicate pad 0.0
+    let leftPad  := Array.mkArray pad 0.0
+    let rightPad := Array.mkArray pad 0.0
     leftPad ++ row ++ rightPad)
   topBottom ++ middle ++ topBottom
 
@@ -114,7 +114,7 @@ Evaluate the RecurrentNet on a sequence of input vectors.
 Starts with a zero hidden state, updates it with the first available RNN cell, and then applies the FC layer.
 --/
 def evalRecurrentNet (rn : RecurrentNet) (xs : List (Array Float)) : Array Float :=
-  let initial_hidden : Array Float := Array.replicate rn.hiddenDim 0.0
+  let initial_hidden : Array Float := Array.mkArray rn.hiddenDim 0.0
   let final_hidden := xs.foldl (λ h x =>
     match rn.cells with
     | []       => h

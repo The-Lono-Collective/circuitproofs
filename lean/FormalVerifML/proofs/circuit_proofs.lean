@@ -190,6 +190,11 @@ def outputsBounded (circuit : Circuit) (lowerBound upperBound : Float) : Prop :=
 
 /-! ## Fairness Properties -/
 
+/-- Compute the maximum absolute difference between two arrays -/
+def arrayMaxAbsDiff (a b : Array Float) : Float :=
+  let pairs := a.zip b
+  pairs.foldl (fun maxDiff (x, y) => max maxDiff (x - y).abs) 0.0
+
 /--
 Example: Demographic parity for a circuit classifier
 

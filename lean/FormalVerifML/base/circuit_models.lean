@@ -177,7 +177,7 @@ def countCircuitEdges (circuit : Circuit) : Nat :=
 /-- Calculate circuit sparsity (1 - active_edges/total_possible_edges) -/
 def circuitSparsity (circuit : Circuit) : Float :=
   let totalEdges := countCircuitEdges circuit
-  let totalPossibleEdges := circuit.components.foldl (fun acc component =>
+  let totalPossibleEdges : Nat := circuit.components.foldl (fun acc component =>
     acc + component.inputDim * component.outputDim
   ) 0
   if totalPossibleEdges > (0 : Nat) then

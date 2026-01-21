@@ -152,7 +152,7 @@ def testMemoryOptimization (config : TestConfig) : IO (List TestResult) := do
 
   -- Test 1: Memory efficiency
   let startTime ← IO.monoMsNow
-  let memoryEfficient := memoryEfficient config.memoryOptimizedModel
+  let memoryEfficient := memoryEfficientTransformer config.memoryOptimizedModel
   let endTime ← IO.monoMsNow
   let executionTime := Float.ofNat (endTime - startTime) / 1000.0
 
