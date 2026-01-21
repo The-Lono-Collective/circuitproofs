@@ -73,7 +73,7 @@ def distributeTasks
   (tasks : List VerificationTask)
   (config : DistributedConfig) : Array (List VerificationTask) := Id.run do
   let numNodes := config.numNodes
-  let mut distribution : Array (List VerificationTask) := Array.replicate numNodes []
+  let mut distribution : Array (List VerificationTask) := Array.mkArray numNodes []
 
   -- Distribute tasks using round-robin with priority consideration
   let sortedTasks := (tasks.toArray.qsort (fun a b => a.priority > b.priority)).toList
@@ -96,7 +96,7 @@ Split a complex SMT formula into sub-formulas.
 def splitFormula (formula : SMTFormula) (numParts : Nat) : Array SMTFormula :=
   -- Simplified formula splitting - in practice, this would be more sophisticated
   -- For now, just replicate the formula (placeholder implementation)
-  Array.replicate numParts formula
+  Array.mkArray numParts formula
 
 /--
 Shard a large verification problem across multiple nodes.
@@ -109,7 +109,7 @@ def shardVerificationProblem
     splitFormula formula config.numNodes
   else
     -- Replicate formula across all nodes
-    Array.replicate config.numNodes formula
+    Array.mkArray config.numNodes formula
 
 /--
 Execute verification task on a single node.
@@ -238,7 +238,7 @@ def balanceLoad
   (config : DistributedConfig) : Array (List VerificationTask) := Id.run do
   if config.enableLoadBalancing then
     -- Simple load balancing based on task priority and node capacity
-    let mut distribution : Array (List VerificationTask) := Array.replicate nodeCapacities.size []
+    let mut distribution : Array (List VerificationTask) := Array.mkArray nodeCapacities.size []
 
     -- Sort tasks by priority (highest first)
     let sortedTasks := (tasks.toArray.qsort (fun a b => a.priority > b.priority)).toList
@@ -310,7 +310,7 @@ def generateDistributedReport (results : List DistributedResult) : String :=
   let totalTime := results.foldl (λ acc r => acc + r.totalExecutionTime) 0.0
   let totalMemory := results.foldl (λ acc r => acc + r.totalMemoryUsage) 0
 
-  let separator := String.ofList (List.replicate 50 '=')
+  let separator := String.mk (List.replicate 50 '=')
   let successRate := Float.ofNat verifiedTasks / Float.ofNat totalTasks * 100.0
 
   let report := s!"DISTRIBUTED VERIFICATION REPORT\n"

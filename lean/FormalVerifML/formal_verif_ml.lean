@@ -183,14 +183,5 @@ theorem certified_circuits_integrated :
     -- Output has correct dimension
     (evalCircuit simpleLinearCircuit #[1.0, 2.0]).size = 1 := by
   constructor
-  · rfl  -- Well-formedness verified by computation
-  · rfl  -- Output size verified by computation
-
-/--
-  Main entry point for the FormalVerifML executable.
-  This ensures the project can be built as an executable target.
---/
-def _root_.main : IO UInt32 := do
-  IO.println "FormalVerifML: Formal Verification for Machine Learning"
-  IO.println "All modules loaded and verified successfully."
-  return 0
+  · native_decide  -- Well-formedness verified by computation
+  · native_decide  -- Output size verified by computation

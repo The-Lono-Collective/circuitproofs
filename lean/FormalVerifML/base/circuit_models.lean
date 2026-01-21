@@ -81,8 +81,8 @@ structure Circuit where
 def applySparseLinear (edges : List CircuitEdge) (bias : Array Float)
     (input : Array Float) (outputDim : Nat) : Array Float :=
   -- 1. Initialize authoritatively using outputDim
-  -- Use Array.replicate instead of mkArray
-  let initial := Array.replicate outputDim 0.0
+  -- Use Array.mkArray instead of mkArray
+  let initial := Array.mkArray outputDim 0.0
 
   -- 2. Safely apply bias
   -- Iterate over the *target* dimension. If bias is short, add 0.0.

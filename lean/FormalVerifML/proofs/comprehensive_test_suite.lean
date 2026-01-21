@@ -337,7 +337,7 @@ def generateTestReport (results : List TestResult) : String :=
   let totalTime := results.foldl (λ acc r => acc + r.executionTime) 0.0
 
   let report := s!"COMPREHENSIVE TEST REPORT\n"
-    ++ s!"{String.ofList (List.replicate 50 '=')}\n"
+    ++ s!"{String.mk (List.replicate 50 '=')}\n"
     ++ s!"Total Tests: {totalTests}\n"
     ++ s!"Passed: {passedTests.length}\n"
     ++ s!"Failed: {failedTests.length}\n"
@@ -346,7 +346,7 @@ def generateTestReport (results : List TestResult) : String :=
     ++ s!"Total Execution Time: {totalTime}s\n"
     ++ s!"Success Rate: {Float.ofNat passedTests.length / Float.ofNat totalTests * 100.0}%\n\n"
     ++ s!"DETAILED RESULTS:\n"
-    ++ s!"{String.ofList (List.replicate 50 '=')}\n"
+    ++ s!"{String.mk (List.replicate 50 '=')}\n"
 
   let detailedResults := results.map (λ r =>
     s!"{r.propertyName}: {r.status} ({r.executionTime}s)\n"

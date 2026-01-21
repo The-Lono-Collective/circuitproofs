@@ -331,7 +331,7 @@ def encryptData (data : String) (config : EnterpriseConfig) : String :=
 
 def decryptData (encryptedData : String) (config : EnterpriseConfig) : String :=
   if config.enableEncryption ∧ encryptedData.startsWith "encrypted_" then
-    String.ofList (encryptedData.drop 10).copy.toList
+    encryptedData.drop 10
   else
     encryptedData
 
@@ -422,7 +422,7 @@ def generateEnterpriseReport
   let failedActions := auditLogs.filter (fun (log : AuditLogEntry) => !log.success) |>.length
 
   let report := s!"ENTERPRISE VERIFICATION REPORT\n"
-    ++ s!"{String.ofList (List.replicate 60 '=')}\n"
+    ++ s!"{String.mk (List.replicate 60 '=')}\n"
     ++ s!"JOBS SUMMARY:\n"
     ++ s!"  Total Jobs: {totalJobs}\n"
     ++ s!"  Completed: {completedJobs}\n"
