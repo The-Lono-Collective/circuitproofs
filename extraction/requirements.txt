@@ -5,6 +5,9 @@
 torch>=2.0.0
 numpy>=1.24.0
 
+# BlockCert certification (required for certified Lipschitz bounds)
+auto-LiRPA>=0.4.0
+
 # Optional: For working with HuggingFace models
 transformers>=4.30.0
 
