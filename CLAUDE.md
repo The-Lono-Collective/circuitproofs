@@ -2,6 +2,18 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Tool Usage
+
+### Context7 MCP for Documentation
+
+**Always use Context7 MCP** when you need:
+- Library or API documentation
+- Code generation examples
+- Setup or configuration steps
+- Framework usage patterns
+
+Do this proactively without requiring explicit user requests. Context7 provides up-to-date documentation that may be more current than training data.
+
 ## Development Philosophy
 
 ### Test-Driven Development (TDD)
