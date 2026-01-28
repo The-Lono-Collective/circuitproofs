@@ -2,6 +2,48 @@
 
 Guidance for Claude Code when working with this repository.
 
+## Tool Usage
+
+### MCP Servers and Plugins
+
+Use these proactively without requiring explicit user requests:
+
+| Tool | When to Use |
+|------|-------------|
+| **Context7 MCP** | Library/API docs, code examples, setup steps, framework patterns |
+| **Serena** | Semantic code exploration, finding symbols, tracing references, understanding architecture |
+| **GitHub MCP** | PR management, issue tracking, repository operations |
+| **Linear** | Project/issue tracking when Linear is used for project management |
+| **Greptile** | Code search across repos, finding patterns, code review assistance |
+
+### Skills (invoke via `/skill-name` or Skill tool)
+
+| Skill | When to Use |
+|-------|-------------|
+| **pr-review-toolkit:review-pr** | Before merging any PR - comprehensive review |
+| **pr-review-toolkit:code-reviewer** | After completing features, before committing |
+| **superpowers:brainstorming** | Before any creative work or new feature implementation |
+| **superpowers:systematic-debugging** | When encountering bugs or test failures |
+| **code-review:code-review** | Quick code review of changes |
+| **commit-commands:commit** | When ready to commit changes |
+
+**Rule:** Before any PR merge or significant code completion, run a code review skill.
+
+### Git Workflow
+
+**Always pull before pushing** to avoid divergent branches and ensure you have the latest changes:
+
+```bash
+# Before making changes
+git pull origin <branch-name>
+
+# Before pushing
+git pull origin <branch-name>  # Fetch and merge any new commits
+git push origin <branch-name>
+```
+
+This prevents merge conflicts and ensures PRs reflect the current state of the codebase.
+
 ## Development Philosophy
 
 ### Test-Driven Development (TDD)

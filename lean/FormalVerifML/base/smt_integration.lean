@@ -63,8 +63,8 @@ Convert Lean Float to SMT string representation.
 def floatToSMT (f : Float) : String :=
   if f == 0.0 then "0.0"
   else if f == 1.0 then "1.0"
-  else if f == -Float.inf then "-oo"
-  else if f == Float.inf then "+oo"
+  else if f == (-1.0 / 0.0) then "-oo"
+  else if f == (1.0 / 0.0) then "+oo"
   else s!"{f}"
 
 /--
