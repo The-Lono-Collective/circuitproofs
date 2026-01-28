@@ -240,11 +240,23 @@ class Certificate:
 
         for block in self.blocks:
             status = "✓" if block.is_certified else "✗"
+            bound_type = "certified" if block.K_mlp_certified else "analytic"
             lines.append(
                 f"  Block {block.block_idx}: ε={block.epsilon:.6e}, "
                 f"cov_act={block.activation_coverage:.2%}, "
+                f"K_mlp={block.K_mlp:.2e} ({bound_type}), "
                 f"L={block.L_block:.2e} [{status}]"
             )
+
+        # Check if any blocks used analytic fallback
+        analytic_blocks = [b for b in self.blocks if not b.K_mlp_certified]
+        if analytic_blocks:
+            lines.extend([
+                "",
+                "⚠ Note: Some blocks used analytic Lipschitz estimates (less tight):",
+                f"  Blocks with analytic K_mlp: {[b.block_idx for b in analytic_blocks]}",
+                "  For certified bounds, run with >= 24GB RAM.",
+            ])
 
         lines.extend([
             "",

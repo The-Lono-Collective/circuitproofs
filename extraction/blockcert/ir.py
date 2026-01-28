@@ -63,15 +63,21 @@ class AttentionIR:
     """
     Intermediate representation for multi-head attention.
 
-    Weights are stored in concatenated format [d_model, d_model].
-    Head-level gating is handled via explicit masks.
+    Supports both Multi-Head Attention (MHA) and Grouped Query Attention (GQA).
+
+    For MHA: num_kv_heads == num_heads
+    For GQA: num_kv_heads < num_heads (e.g., TinyLlama uses 32 query heads, 4 KV heads)
+
+    Weights are stored in concatenated format:
+    - W_Q, W_O: [d_model, num_heads * head_dim]
+    - W_K, W_V: [d_model, num_kv_heads * head_dim]
     """
 
     # Core weights - concatenated across heads
-    W_Q: np.ndarray  # Shape: [d_model, d_model]
-    W_K: np.ndarray  # Shape: [d_model, d_model]
-    W_V: np.ndarray  # Shape: [d_model, d_model]
-    W_O: np.ndarray  # Shape: [d_model, d_model]
+    W_Q: np.ndarray  # Shape: [d_model, num_heads * head_dim]
+    W_K: np.ndarray  # Shape: [d_model, num_kv_heads * head_dim]
+    W_V: np.ndarray  # Shape: [d_model, num_kv_heads * head_dim]
+    W_O: np.ndarray  # Shape: [d_model, num_heads * head_dim]
 
     # Biases (optional, many models don't use them)
     b_Q: Optional[np.ndarray] = None  # Shape: [d_model]
@@ -91,6 +97,7 @@ class AttentionIR:
     # Attention configuration
     num_heads: int = 1
     head_dim: int = 64
+    num_kv_heads: Optional[int] = None  # For GQA; defaults to num_heads if not set
 
     # Pre/post normalization
     pre_norm: Optional[NormIR] = None
@@ -98,6 +105,10 @@ class AttentionIR:
     def __post_init__(self):
         """Validate shapes and initialize default masks."""
         d_model = self.W_Q.shape[0]
+
+        # Default num_kv_heads to num_heads for standard MHA
+        if self.num_kv_heads is None:
+            self.num_kv_heads = self.num_heads
 
         # Initialize masks to all-ones if not provided (no pruning)
         if self.mask_Q is None:
@@ -114,6 +125,16 @@ class AttentionIR:
     @property
     def d_model(self) -> int:
         return self.W_Q.shape[0]
+
+    @property
+    def is_gqa(self) -> bool:
+        """Returns True if using Grouped Query Attention (fewer KV heads than Q heads)."""
+        return self.num_kv_heads < self.num_heads
+
+    @property
+    def kv_head_repeat(self) -> int:
+        """Number of times each KV head is repeated to match query heads."""
+        return self.num_heads // self.num_kv_heads
 
     def get_masked_weights(self) -> Dict[str, np.ndarray]:
         """Return weights with masks applied (pruned weights zeroed)."""
@@ -144,6 +165,7 @@ class AttentionIR:
             "head_mask": self.head_mask,
             "num_heads": np.array([self.num_heads]),
             "head_dim": np.array([self.head_dim]),
+            "num_kv_heads": np.array([self.num_kv_heads]),
         }
 
         # Add optional biases
@@ -175,6 +197,7 @@ class AttentionIR:
             head_mask=data["head_mask"],
             num_heads=int(data["num_heads"][0]),
             head_dim=int(data["head_dim"][0]),
+            num_kv_heads=int(data["num_kv_heads"][0]) if "num_kv_heads" in data else None,
         )
 
     @staticmethod

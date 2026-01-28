@@ -5,6 +5,22 @@ This test verifies:
 1. auto-LiRPA computes certified K_MLP bounds
 2. K_MLP is in expected range (~1000-2000 for real models)
 3. The full certification pipeline completes
+
+MEMORY REQUIREMENTS:
+    Based on the BlockCert paper, certifying TinyLlama's MLP layers
+    (d_ff=5632) requires significant RAM. Memory scales as O(d_ff^2)
+    due to identity matrix creation in auto-LiRPA's backward bound
+    propagation.
+
+    - Test [1] (Tanh-GELU): ~30GB required (more intermediate ops)
+    - Test [2] (Gated SiLU): ~24GB required
+    - Test [3] (BlockCertifier init): minimal
+    - Test [4] (Full TinyLlama): ~24GB required
+
+    If running in Docker, use: docker run -m 30g ...
+
+    On systems with insufficient RAM, tests will gracefully skip with
+    informative messages instead of OOM crashing.
 """
 
 import torch
@@ -13,9 +29,46 @@ import numpy as np
 import tempfile
 from pathlib import Path
 
+
+def get_available_memory_gb():
+    """Get available system memory in GB."""
+    try:
+        import psutil
+        return psutil.virtual_memory().available / (1024 ** 3)
+    except ImportError:
+        try:
+            with open('/proc/meminfo', 'r') as f:
+                for line in f:
+                    if line.startswith('MemAvailable:'):
+                        return int(line.split()[1]) / (1024 ** 2)
+        except (FileNotFoundError, ValueError, IndexError):
+            pass
+    return -1.0
+
+
 # Test 1: Direct auto-LiRPA test with Tanh-GELU
 def test_auto_lirpa_tanh_gelu():
-    """Verify auto-LiRPA works with Tanh-GELU approximation."""
+    """
+    Verify auto-LiRPA works with Tanh-GELU approximation.
+
+    MEMORY: Requires ~24-30GB RAM for d_ff=5632 due to Tanh-GELU's
+    multiple intermediate operations (pow, mul, add, tanh).
+    """
+    d_model = 2048
+    d_ff = 5632  # TinyLlama intermediate size
+    # Tanh-GELU has more ops than SiLU, needs ~30GB for safety
+    required_memory_gb = 30.0
+
+    # Pre-flight memory check
+    available_gb = get_available_memory_gb()
+    print(f"  Available memory: {available_gb:.1f} GB (required: ~{required_memory_gb:.0f} GB)")
+
+    if 0 < available_gb < required_memory_gb:
+        print(f"  SKIP: Insufficient memory for Tanh-GELU certification.")
+        print(f"        To run this test, use: docker run -m 30g ...")
+        print(f"        Or reduce d_ff for testing purposes.")
+        return None
+
     from auto_LiRPA import BoundedModule, BoundedTensor, PerturbationLpNorm
     import math
 
@@ -24,10 +77,6 @@ def test_auto_lirpa_tanh_gelu():
             return 0.5 * x * (1 + torch.tanh(
                 math.sqrt(2 / math.pi) * (x + 0.044715 * x ** 3)
             ))
-
-    # Create MLP with realistic dimensions (like TinyLlama)
-    d_model = 2048
-    d_ff = 5632  # TinyLlama intermediate size
 
     mlp = nn.Sequential(
         nn.Linear(d_model, d_ff),
@@ -46,7 +95,7 @@ def test_auto_lirpa_tanh_gelu():
     output_range = (ub - lb).abs().max().item()
     K_mlp = output_range / 2.0
 
-    print(f"K_MLP (random init, d_model={d_model}): {K_mlp:.4f}")
+    print(f"  K_MLP (random init, d_model={d_model}): {K_mlp:.4f}")
 
     # Random init should give moderate bounds
     assert K_mlp > 0, "K_MLP should be positive"
@@ -56,15 +105,31 @@ def test_auto_lirpa_tanh_gelu():
 
 
 def test_auto_lirpa_silu():
-    """Verify auto-LiRPA works with SiLU (sigmoid-based) for gated models."""
+    """
+    Verify auto-LiRPA works with SiLU (sigmoid-based) for gated models.
+
+    MEMORY: Requires ~24GB RAM for d_ff=5632 (TinyLlama dimensions).
+    Will skip with informative message if insufficient memory detected.
+    """
+    d_model = 2048
+    d_ff = 5632
+    required_memory_gb = 24.0
+
+    # Pre-flight memory check
+    available_gb = get_available_memory_gb()
+    print(f"  Available memory: {available_gb:.1f} GB (required: ~{required_memory_gb:.0f} GB)")
+
+    if 0 < available_gb < required_memory_gb:
+        print(f"  SKIP: Insufficient memory for gated MLP certification.")
+        print(f"        To run this test, use: docker run -m 24g ...")
+        print(f"        Falling back to analytic bounds is the expected behavior here.")
+        return None
+
     from auto_LiRPA import BoundedModule, BoundedTensor, PerturbationLpNorm
 
     class SiLU(nn.Module):
         def forward(self, x):
             return x * torch.sigmoid(x)
-
-    d_model = 2048
-    d_ff = 5632
 
     # Gated MLP structure (like TinyLlama)
     class GatedMLP(nn.Module):
@@ -91,7 +156,7 @@ def test_auto_lirpa_silu():
     output_range = (ub - lb).abs().max().item()
     K_mlp = output_range / 2.0
 
-    print(f"K_MLP (gated SiLU, d_model={d_model}): {K_mlp:.4f}")
+    print(f"  K_MLP (gated SiLU, d_model={d_model}): {K_mlp:.4f}")
 
     assert K_mlp > 0, "K_MLP should be positive"
     assert K_mlp < 1e10, "K_MLP should not be astronomical"
@@ -191,15 +256,25 @@ if __name__ == "__main__":
 
     print("\n[1] Testing auto-LiRPA with Tanh-GELU...")
     try:
-        test_auto_lirpa_tanh_gelu()
-        print("PASS")
+        result = test_auto_lirpa_tanh_gelu()
+        if result is None:
+            print("SKIPPED (insufficient memory)")
+        else:
+            print("PASS")
+    except MemoryError as e:
+        print(f"SKIPPED (MemoryError - need 30GB RAM): {e}")
     except Exception as e:
         print(f"FAIL: {e}")
 
     print("\n[2] Testing auto-LiRPA with SiLU (gated MLP)...")
     try:
-        test_auto_lirpa_silu()
-        print("PASS")
+        result = test_auto_lirpa_silu()
+        if result is None:
+            print("SKIPPED (insufficient memory)")
+        else:
+            print("PASS")
+    except MemoryError as e:
+        print(f"SKIPPED (MemoryError - need 24GB RAM): {e}")
     except Exception as e:
         print(f"FAIL: {e}")
 

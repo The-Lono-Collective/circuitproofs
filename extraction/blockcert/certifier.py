@@ -9,6 +9,7 @@ Computes certification metrics for surrogate blocks:
 - Lipschitz constants (K_attn via spectral norm, K_MLP via auto-LiRPA)
 """
 
+import logging
 import numpy as np
 import torch
 import torch.nn as nn
@@ -20,6 +21,8 @@ from .ir import BlockIR, AttentionIR, MLPIR
 from .interpreter import BlockInterpreter
 from .tracer import TraceDataset
 
+logger = logging.getLogger(__name__)
+
 
 # Certification thresholds from BlockCert spec
 TAU_ACT = 1e-2  # Activation error threshold
@@ -27,6 +30,91 @@ TAU_LOSS = 1e-3  # Loss error threshold
 ALPHA_ACT = 0.94  # Required activation coverage
 ALPHA_LOSS = 0.90  # Required loss coverage
 L2_BALL_RADIUS = 1.0  # Radius for local Lipschitz computation
+
+# Memory requirements for auto-LiRPA bound computation
+# Based on BlockCert paper: TinyLlama (d_ff=5632) requires ~24GB RAM
+# Memory scales roughly as O(d_ff^2) for identity matrix creation
+MIN_MEMORY_GB_PER_5K_DIM = 24.0  # GB required for ~5000-dim FFN
+MEMORY_WARN_THRESHOLD_GB = 16.0  # Warn if system has less than this
+REFERENCE_DIM = 5632  # TinyLlama d_ff dimension used for memory baseline
+
+
+def get_available_memory_gb() -> float:
+    """
+    Get available system memory in GB.
+
+    Returns:
+        Available memory in GB, or -1 if unable to determine.
+    """
+    try:
+        import psutil
+        mem = psutil.virtual_memory()
+        return mem.available / (1024 ** 3)
+    except ImportError:
+        # psutil not available, try reading /proc/meminfo on Linux
+        try:
+            with open('/proc/meminfo', 'r') as f:
+                for line in f:
+                    if line.startswith('MemAvailable:'):
+                        # Value is in kB
+                        kb = int(line.split()[1])
+                        return kb / (1024 ** 2)
+        except (FileNotFoundError, ValueError, IndexError):
+            pass
+    return -1.0
+
+
+def estimate_lirpa_memory_gb(d_ff: int, n_samples: int = 100) -> float:
+    """
+    Estimate memory required for auto-LiRPA bound computation.
+
+    Memory scales as O(d_ff^2) due to identity matrix creation for each
+    intermediate node. Based on empirical observation from BlockCert paper:
+    - TinyLlama (d_ff=5632) requires ~24GB
+
+    Args:
+        d_ff: FFN intermediate dimension
+        n_samples: Number of calibration samples
+
+    Returns:
+        Estimated memory requirement in GB.
+    """
+    # Scale quadratically from reference point
+    # Add buffer for sample batch and other overhead
+    scale_factor = (d_ff / REFERENCE_DIM) ** 2
+    base_memory = MIN_MEMORY_GB_PER_5K_DIM * scale_factor
+
+    # Add ~1GB per 100 samples for input/output tensors
+    sample_overhead = (n_samples / 100) * 1.0
+
+    return base_memory + sample_overhead
+
+
+def check_memory_for_lirpa(d_ff: int, n_samples: int = 100) -> Tuple[bool, float, float]:
+    """
+    Check if sufficient memory is available for auto-LiRPA.
+
+    Args:
+        d_ff: FFN intermediate dimension
+        n_samples: Number of calibration samples
+
+    Returns:
+        Tuple of (sufficient, available_gb, required_gb)
+    """
+    available = get_available_memory_gb()
+    required = estimate_lirpa_memory_gb(d_ff, n_samples)
+
+    if available < 0:
+        # Cannot determine memory, assume sufficient but warn
+        logger.warning(
+            "Unable to determine available memory. Attempting auto-LiRPA anyway. "
+            "If OOM occurs, increase system memory to %.1f GB or set use_auto_lirpa=False.",
+            required
+        )
+        return True, available, required
+
+    sufficient = available >= required
+    return sufficient, available, required
 
 
 @dataclass
@@ -300,9 +388,38 @@ class BlockCertifier:
 
         Computes bound on L2 ball of radius 1.0 around calibration inputs.
 
+        Pre-flight memory check:
+            Based on BlockCert paper, TinyLlama (d_ff=5632) requires ~24GB RAM.
+            If insufficient memory is detected, falls back to analytic bounds
+            to prevent OOM kills.
+
         Returns:
-            (K_mlp, certified): Lipschitz constant and whether it's certified
+            (K_mlp, certified): Lipschitz constant and whether it's certified.
+                certified=True means auto-LiRPA succeeded (bound_type: "certified")
+                certified=False means analytic fallback (bound_type: "analytic_estimate")
         """
+        # Determine FFN intermediate dimension for memory estimation
+        weights = mlp_ir.get_masked_weights()
+        d_ff = weights["W_1"].shape[0]  # W_1 is [d_ff, d_model]
+
+        # Get sample count
+        inputs, _ = trace_dataset.get_flat_tokens()
+        max_samples = min(100, len(inputs))
+
+        # Pre-flight memory check
+        sufficient, available_gb, required_gb = check_memory_for_lirpa(d_ff, max_samples)
+
+        if not sufficient:
+            logger.warning(
+                "Insufficient memory for certified MLP bounds "
+                "(Available: %.1f GB, Required: %.1f GB for d_ff=%d). "
+                "Falling back to analytic estimates. "
+                "To get certified bounds, increase system memory to >= %.0f GB.",
+                available_gb, required_gb, d_ff, required_gb
+            )
+            K_mlp = self._compute_mlp_lipschitz_analytic(mlp_ir)
+            return K_mlp, False
+
         try:
             from auto_LiRPA import BoundedModule, BoundedTensor, PerturbationLpNorm
 
@@ -310,11 +427,6 @@ class BlockCertifier:
             mlp_module = self._build_mlp_module(mlp_ir)
             mlp_module.eval()
 
-            # Get sample inputs from trace dataset
-            inputs, _ = trace_dataset.get_flat_tokens()
-
-            # Use a subset for efficiency
-            max_samples = min(100, len(inputs))
             sample_inputs = torch.tensor(
                 inputs[:max_samples], dtype=torch.float32, device=self.device
             )
@@ -333,11 +445,26 @@ class BlockCertifier:
             output_range = (ub - lb).abs().max().item()
             K_mlp = output_range / (2 * L2_BALL_RADIUS)
 
+            logger.info(
+                "Certified K_MLP=%.4f for d_ff=%d using auto-LiRPA (used %.1f GB)",
+                K_mlp, d_ff, available_gb - get_available_memory_gb() if available_gb > 0 else 0
+            )
+
             return K_mlp, True
 
+        except MemoryError as e:
+            logger.error(
+                "MemoryError during auto-LiRPA bound computation (d_ff=%d). "
+                "Falling back to analytic estimates. "
+                "Increase system memory to >= %.0f GB for certified bounds.",
+                d_ff, required_gb
+            )
+            return self._compute_mlp_lipschitz_analytic(mlp_ir), False
+
         except Exception as e:
-            import warnings
-            warnings.warn(f"auto-LiRPA failed: {e}. Falling back to analytic estimate.")
+            logger.warning(
+                "auto-LiRPA failed: %s. Falling back to analytic estimate.", e
+            )
             return self._compute_mlp_lipschitz_analytic(mlp_ir), False
 
     def _compute_mlp_lipschitz_analytic(self, mlp_ir: MLPIR) -> float:

@@ -111,6 +111,7 @@ class BlockInterpreter:
         """
         batch_size, seq_len, d_model = hidden_states.shape
         num_heads = attn_ir.num_heads
+        num_kv_heads = attn_ir.num_kv_heads
         head_dim = attn_ir.head_dim
 
         # Get masked weights
@@ -118,17 +119,27 @@ class BlockInterpreter:
         W_Q, W_K, W_V, W_O = weights["W_Q"], weights["W_K"], weights["W_V"], weights["W_O"]
 
         # Project to Q, K, V
-        # Shape: [batch, seq_len, d_model] @ [d_model, d_model] -> [batch, seq_len, d_model]
+        # Q shape: [batch, seq_len, num_heads * head_dim]
+        # K/V shape: [batch, seq_len, num_kv_heads * head_dim]
         Q = self._matmul(hidden_states, W_Q.T, attn_ir.b_Q)
         K = self._matmul(hidden_states, W_K.T, attn_ir.b_K)
         V = self._matmul(hidden_states, W_V.T, attn_ir.b_V)
 
         # Reshape for multi-head attention
-        # [batch, seq_len, d_model] -> [batch, seq_len, num_heads, head_dim]
-        # -> [batch, num_heads, seq_len, head_dim]
+        # Q: [batch, seq_len, num_heads * head_dim] -> [batch, num_heads, seq_len, head_dim]
         Q = Q.reshape(batch_size, seq_len, num_heads, head_dim).transpose(0, 2, 1, 3)
-        K = K.reshape(batch_size, seq_len, num_heads, head_dim).transpose(0, 2, 1, 3)
-        V = V.reshape(batch_size, seq_len, num_heads, head_dim).transpose(0, 2, 1, 3)
+
+        # K/V: [batch, seq_len, num_kv_heads * head_dim] -> [batch, num_kv_heads, seq_len, head_dim]
+        K = K.reshape(batch_size, seq_len, num_kv_heads, head_dim).transpose(0, 2, 1, 3)
+        V = V.reshape(batch_size, seq_len, num_kv_heads, head_dim).transpose(0, 2, 1, 3)
+
+        # For GQA: repeat K/V heads to match query heads
+        if num_kv_heads < num_heads:
+            kv_head_repeat = num_heads // num_kv_heads
+            # Repeat each KV head to match query heads
+            # [batch, num_kv_heads, seq_len, head_dim] -> [batch, num_heads, seq_len, head_dim]
+            K = np.repeat(K, kv_head_repeat, axis=1)
+            V = np.repeat(V, kv_head_repeat, axis=1)
 
         # Apply head mask (zero out pruned heads)
         head_mask = attn_ir.head_mask.reshape(1, num_heads, 1, 1)

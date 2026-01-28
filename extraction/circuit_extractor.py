@@ -691,9 +691,20 @@ class BlockCertExtractor:
             mask_V = self._compute_pruning_mask(W_V, pruning_threshold)
             mask_O = self._compute_pruning_mask(W_O, pruning_threshold)
 
-            # Infer num_heads from shape
-            num_heads = max(1, d_model // 64)  # Assume head_dim=64
-            head_dim = d_model // num_heads
+            # Infer num_heads and head_dim from Q projection shape
+            # Assume head_dim=64 (common for LLaMA-family models)
+            head_dim = 64
+            num_heads = max(1, W_Q.shape[1] // head_dim)
+
+            # Detect GQA: if K/V projections are smaller than Q projection
+            # For GQA models like TinyLlama: 32 query heads, 4 KV heads
+            kv_dim = W_K.shape[1]
+            if kv_dim < W_Q.shape[1]:
+                # GQA detected
+                num_kv_heads = kv_dim // head_dim
+            else:
+                # Standard MHA
+                num_kv_heads = num_heads
 
             attention_ir = AttentionIR(
                 W_Q=W_Q,
@@ -710,6 +721,7 @@ class BlockCertExtractor:
                 mask_O=mask_O,
                 num_heads=num_heads,
                 head_dim=head_dim,
+                num_kv_heads=num_kv_heads,
             )
         else:
             # No attention - create minimal placeholder
