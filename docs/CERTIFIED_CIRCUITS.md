@@ -29,37 +29,17 @@ This approach targets the [Martian Interpretability Challenge](https://withmarti
 
 ### Component A: BlockCert Extraction
 
-**Location:** `extraction/circuit_extractor.py`
+**Location:** `extraction/blockcert/`
 
-| Feature | Status | Notes |
+| Module | Status | Notes |
 |---------|--------|-------|
-| `CircuitExtractor` class | ✅ Implemented | |
-| `compute_importance_scores()` | ✅ Implemented | Gradient and activation metrics |
-| `activation_patching()` | ⚠️ Partial | Not fully integrated |
-| `edge_pruning()` | ✅ Implemented | |
-| `extract_circuit()` | ✅ Implemented | |
-| `compute_lipschitz_constant()` | ✅ Implemented | Linear, ReLU, LayerNorm |
-| `compute_error_bound()` | ⚠️ Partial | Depends on stub below |
-| `_evaluate_circuit()` | ❌ **STUB** | **Critical blocker** |
-| `export_to_json()` | ✅ Implemented | With SHA-256 hash |
+| `ir.py` (BlockIR, TraceRecord, TraceDataset) | ✅ Implemented | Intermediate representation and trace data |
+| `interpreter.py` (BlockInterpreter) | ✅ Implemented | Block evaluation |
+| `certifier.py` (BlockCertifier) | ✅ Implemented | Certification with Lipschitz bounds |
+| `certificate.py` (Certificate) | ✅ Implemented | Certificate generation |
+| SheafCert Pipeline (CD-T + DiscoGP) | ❌ **Not implemented** | Planned replacement for archived `circuit_extractor.py` |
 
-**Critical Issue:**
-
-```python
-# extraction/circuit_extractor.py:340-353
-def _evaluate_circuit(self, circuit_components, inputs):
-    """
-    Evaluate the extracted circuit (simplified implementation)
-
-    In practice, this would construct a new model with only the
-    circuit components and evaluate it.
-    """
-    # Simplified: return original model output
-    # A full implementation would build a sparse model
-    return self.model(inputs)  # ← RETURNS WRONG OUTPUT
-```
-
-This stub returns the original model's output instead of building and evaluating the sparse circuit. **All error bounds computed using this are inaccurate.**
+**Note:** The legacy `circuit_extractor.py` has been archived to the `archive/legacy-blockcert` branch. The SheafCert extraction pipeline is planned but not yet implemented.
 
 ### Component B: Translation Layer
 
@@ -173,30 +153,16 @@ if ratio > 100:
 
 ## Usage (Current State)
 
-### End-to-End Demo
-
-```bash
-# Runs on toy model - demonstrates pipeline but uses stubs
-python examples/end_to_end_pipeline.py
-```
-
-### Step-by-Step (with Caveats)
+### Step-by-Step
 
 #### Step 1: Extract Circuit
 
 ```python
-from extraction.circuit_extractor import extract_transformer_circuit
+from extraction.blockcert import BlockCertifier, BlockIR, BlockInterpreter, Certificate
 
-# WARNING: Error bounds are inaccurate due to _evaluate_circuit() stub
-circuit_data = extract_transformer_circuit(
-    model=your_pytorch_model,
-    calibration_data=calibration_inputs,
-    calibration_targets=calibration_outputs,
-    test_data=test_inputs,
-    test_targets=test_outputs,
-    output_path="circuit.json",
-    pruning_threshold=0.01
-)
+# BlockCert modules provide IR, interpretation, certification, and certificate generation.
+# The SheafCert extraction pipeline (CD-T + DiscoGP) is planned but not yet implemented.
+# See extraction/blockcert/ for available modules.
 ```
 
 #### Step 2: Translate to Lean
@@ -218,7 +184,7 @@ lake build
 
 ## What Works Today
 
-1. ✅ Circuit extraction identifies important components
+1. ✅ BlockCert IR, interpreter, certifier, and certificate modules implemented
 2. ✅ Sparse edge representation is generated correctly
 3. ✅ Lean code is syntactically valid and type-checks
 4. ✅ Lean definitions (structures, functions) are complete
@@ -226,11 +192,10 @@ lake build
 
 ## What Does NOT Work Today
 
-1. ❌ `_evaluate_circuit()` returns wrong output (stub)
-2. ❌ Error bounds are inaccurate without proper circuit evaluation
-3. ❌ Core theorems have `sorry` - no actual proofs
-4. ❌ MBPP-Lean benchmark integration not implemented
-5. ❌ Cross-model comparison not implemented
+1. ❌ SheafCert extraction pipeline not yet implemented (legacy `circuit_extractor.py` archived)
+2. ❌ Core theorems have `sorry` - no actual proofs
+3. ❌ MBPP-Lean benchmark integration not implemented
+4. ❌ Cross-model comparison not implemented
 
 ---
 
@@ -240,7 +205,7 @@ lake build
 
 | Task | Expert Needed | Effort |
 |------|---------------|--------|
-| Fix `_evaluate_circuit()` | MI/PyTorch engineer | 2-3 days |
+| Implement SheafCert pipeline | MI/PyTorch engineer | TBD |
 | Validate Lipschitz tightness | MI engineer | 1-2 days |
 | Complete `lipschitz_composition_bound` | Lean expert | 1 week |
 | Complete `property_transfer` | Lean expert | 1 week |

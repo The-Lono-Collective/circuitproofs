@@ -18,7 +18,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 | Priority | Area | Focus |
 |----------|------|-------|
-| **P0** | `extraction/circuit_extractor.py` | Fix `_evaluate_circuit()` stub |
+| **P0** | `extraction/blockcert/` | Implement SheafCert pipeline (CD-T + DiscoGP) |
 | **P0** | `lean/FormalVerifML/base/circuit_models.lean` | Complete `property_transfer`, `lipschitz_composition_bound` |
 | **P0** | `lean/FormalVerifML/proofs/circuit_proofs.lean` | Complete `sorry` theorems |
 | **P0** | `benchmarks/verina/` | Implement MBPP benchmark runner |
@@ -29,22 +29,20 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | Area | Reason |
 |------|--------|
 | `webapp/` | Web UI deprioritized |
-| Vision models (ViT, CLIP) | Not code generation |
-| Enterprise features (auth, audit) | Not needed for challenge |
-| `translator/test_huggingface_models.py` | Vision model tests |
-| `translator/test_enterprise_features.py` | Enterprise tests |
+| Vision models (ViT, CLIP) | Not code generation (archived to `archive/legacy-blockcert`) |
+| Enterprise features (auth, audit) | Not needed for challenge (archived to `archive/legacy-blockcert`) |
 
 ---
 
 ## Critical Blockers
 
-### 1. `_evaluate_circuit()` Stub
+### 1. SheafCert Extraction Pipeline (Not Yet Implemented)
 
-**Location:** `extraction/circuit_extractor.py:340-353`
+**Location:** `extraction/blockcert/` (current BlockCert modules), new SheafCert pipeline TBD
 
-**Problem:** Returns original model output instead of sparse circuit output. Error bounds are meaningless.
+**Problem:** The legacy `circuit_extractor.py` has been archived to `archive/legacy-blockcert`. The replacement SheafCert pipeline (CD-T + DiscoGP) has not been implemented yet.
 
-**Fix Required:** Build and evaluate masked/sparse network from circuit components.
+**Fix Required:** Implement the new extraction pipeline in `extraction/`.
 
 ### 2. Core Lean Theorems
 
@@ -96,17 +94,15 @@ python -m pytest translator/ -v
 # Comprehensive python tests
 python -m pytest translator/run_comprehensive_tests.py
 
-# Run end-to-end demo
-python examples/end_to_end_pipeline.py
 ```
 
 ### Circuit Extraction
 
 ```bash
-# Extract circuit
+# BlockCert extraction API
 python -c "
-from extraction.circuit_extractor import CircuitExtractor
-# See examples/end_to_end_pipeline.py for usage
+from extraction.blockcert import BlockCertifier, BlockIR, BlockInterpreter, Certificate
+# See extraction/blockcert/ for module details
 "
 ```
 
@@ -127,7 +123,7 @@ python translator/circuit_to_lean.py \
 
 | File | Issue | Action |
 |------|-------|--------|
-| `extraction/circuit_extractor.py:340` | `_evaluate_circuit()` stub | Implement sparse evaluation |
+| `extraction/blockcert/` | SheafCert pipeline not implemented | Implement CD-T + DiscoGP extraction |
 | `lean/FormalVerifML/base/circuit_models.lean:203` | `sorry` | Complete `lipschitz_composition_bound` |
 | `lean/FormalVerifML/base/circuit_models.lean:217` | `sorry` | Complete `property_transfer` |
 | `lean/FormalVerifML/proofs/circuit_proofs.lean` | Multiple `sorry` | Complete all proofs |
@@ -145,8 +141,7 @@ python translator/circuit_to_lean.py \
 | File/Directory | Reason |
 |----------------|--------|
 | `webapp/` | Deprioritized |
-| `lean/FormalVerifML/base/vision_models.lean` | Not in scope |
-| `lean/FormalVerifML/base/enterprise_features.lean` | Not in scope |
+| `archive/legacy-blockcert` branch | Archived legacy files (vision_models.lean, enterprise_features.lean, circuit_extractor.py, etc.) |
 
 ---
 
@@ -168,7 +163,7 @@ Certificate: "Circuit implements algorithm within ε"
 
 | Component | Status | Location |
 |-----------|--------|----------|
-| A: Extraction | ⚠️ 70% (stub) | `extraction/circuit_extractor.py` |
+| A: Extraction | ⚠️ Redesigning | `extraction/blockcert/` (SheafCert pipeline TBD) |
 | B: Translation | ✅ 85% | `translator/circuit_to_lean.py` |
 | C: Verification | ❌ 40% (sorry) | `lean/FormalVerifML/` |
 | MBPP Benchmark | ❌ 10% | `benchmarks/verina/` |
@@ -234,24 +229,6 @@ def run_single_problem(problem_id: str, model_name: str) -> BenchmarkResult:
     4. Translate to Lean
     5. Attempt to prove matches spec
     """
-    pass
-```
-
-### Fixing `_evaluate_circuit()`
-
-```python
-# extraction/circuit_extractor.py
-
-def _evaluate_circuit(self, circuit_components, inputs):
-    """
-    REQUIRED: Build sparse model and evaluate.
-
-    1. Create new model with only circuit edges
-    2. Apply masks to original weights
-    3. Forward pass through sparse model
-    4. Return sparse model output (NOT original model)
-    """
-    # TODO: Implement this properly
     pass
 ```
 

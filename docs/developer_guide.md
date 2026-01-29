@@ -107,9 +107,7 @@ circuitproofs/
 │       │   ├── 📄 ml_properties.lean         # Verification property definitions
 │       │   ├── 📄 memory_optimized_models.lean # Memory optimization
 │       │   ├── 📄 smt_integration.lean       # SMT solver integration
-│       │   ├── 📄 vision_models.lean         # Vision transformer support
-│       │   ├── 📄 distributed_verification.lean # Distributed processing
-│       │   └── 📄 enterprise_features.lean   # Enterprise features
+│       │   └── 📄 distributed_verification.lean # Distributed processing
 │       ├── 📁 generated/             # Auto-generated model definitions
 │       │   └── 📄 *.lean                     # Generated model definitions
 │       └── 📁 proofs/                # Verification proof scripts
@@ -118,20 +116,15 @@ circuitproofs/
 │           ├── 📄 example_fairness_proof.lean
 │           └── 📄 comprehensive_test_suite.lean
 ├── 📁 extraction/                    # Circuit extraction module
-│   ├── 📄 circuit_extractor.py      # BlockCert-style extraction
-│   ├── 📄 example_extraction.py     # Example usage
-│   └── 📄 requirements.txt          # Extraction dependencies
+│   └── 📁 blockcert/               # BlockCert modules (IR, interpreter, certifier, certificate)
 ├── 📁 translator/                    # Model translation and testing
 │   ├── 📄 circuit_to_lean.py        # Circuit to Lean translation
 │   ├── 📄 export_from_pytorch.py    # PyTorch model export
 │   ├── 📄 generate_lean_model.py    # JSON to Lean code generation
 │   ├── 📄 run_comprehensive_tests.py # Comprehensive test runner
-│   ├── 📄 test_huggingface_models.py # HuggingFace model testing
-│   ├── 📄 test_enterprise_features.py # Enterprise feature testing
 │   ├── 📄 requirements.txt          # Python dependencies
 │   └── 📄 *.json                    # Sample model definitions
-├── 📁 examples/                      # End-to-end examples
-│   └── 📄 end_to_end_pipeline.py    # Complete circuit pipeline demo
+├── 📁 examples/                      # Examples
 ├── 📁 webapp/                       # Web interface and visualization
 │   ├── 📄 app.py                    # Flask application
 │   ├── 📁 templates/                # HTML templates
@@ -542,8 +535,6 @@ Tests are located in the `translator/` directory:
 ```
 translator/
 ├── 📄 run_comprehensive_tests.py   # Main test runner
-├── 📄 test_huggingface_models.py   # HuggingFace model tests
-├── 📄 test_enterprise_features.py  # Enterprise feature tests
 ├── 📄 export_from_pytorch.py       # PyTorch export (testable)
 ├── 📄 generate_lean_model.py       # Lean generation (testable)
 ├── 📄 circuit_to_lean.py           # Circuit translation (testable)
@@ -553,10 +544,7 @@ translator/
 Additional test artifacts are in the root directory:
 ```
 circuitproofs/
-├── 📄 test_results_huggingface.json    # HuggingFace test results
-├── 📄 test_results_vision_models.json  # Vision model test results
 ├── 📄 test_results_large_models.json   # Large model test results
-├── 📄 test_results_enterprise.json     # Enterprise test results
 └── 📄 test_report.txt                  # Test report
 ```
 
@@ -565,12 +553,6 @@ circuitproofs/
 ```bash
 # Run comprehensive test suite
 python translator/run_comprehensive_tests.py
-
-# Run HuggingFace model tests
-python translator/test_huggingface_models.py
-
-# Run enterprise feature tests
-python translator/test_enterprise_features.py
 
 # Run with pytest (if pytest is installed)
 python -m pytest translator/ -v
