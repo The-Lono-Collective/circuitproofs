@@ -12,7 +12,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from .fetch_dataset import load_mbpp_task, list_available_tasks, MBPPTask
+from benchmarks.verina.fetch_dataset import load_mbpp_task, list_available_tasks, MBPPTask
 
 
 @dataclass
@@ -247,7 +247,7 @@ def _run_counterfactual_tests(
     original_circuit: Dict
 ) -> Dict:
     """Run counterfactual tests with input variants."""
-    from .variant_generator import generate_variants, compare_circuits
+    from benchmarks.verina.variant_generator import generate_variants, compare_circuits
 
     results = {
         "variants_tested": 0,
