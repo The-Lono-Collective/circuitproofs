@@ -1,0 +1,40 @@
+name: Claude Code Review (Simple)
+
+on:
+  pull_request:
+    types: [labeled]
+
+jobs:
+  review-simple:
+    # Only trigger when claude-simple label is applied
+    if: github.event.label.name == 'claude-simple'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Run Claude Simple Review
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          model: haiku
+          claude_args: "--max-turns 5"
+          custom_instructions: |
+            You are a lightweight code review agent for simple PRs.
+            Follow the instructions in .claude/prompts/review-simple.md exactly.
+
+            First, find the triage summary by looking for a PR comment containing
+            "CLAUDE_TRIAGE_SUMMARY". Use the gh CLI to list PR comments and find it.
+
+            Then perform your quick review based on the triage summary and the PR diff.
+            Keep your response concise - max 3 bullet points.
+
+            Remember: This is a SIMPLE review. Do not deep-dive into code logic.
+            Focus only on: typos, formatting, broken links, obvious errors.

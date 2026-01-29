@@ -1,0 +1,42 @@
+name: Claude Code Review (Moderate)
+
+on:
+  pull_request:
+    types: [labeled]
+
+jobs:
+  review-moderate:
+    # Only trigger when claude-moderate label is applied
+    if: github.event.label.name == 'claude-moderate'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Run Claude Moderate Review
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          model: sonnet
+          claude_args: "--max-turns 10"
+          custom_instructions: |
+            You are a code review agent for standard PRs (bug fixes, small features).
+            Follow the instructions in .claude/prompts/review-moderate.md exactly.
+
+            First, find the triage summary by looking for a PR comment containing
+            "CLAUDE_TRIAGE_SUMMARY". Use the gh CLI to list PR comments and find it.
+
+            Then perform your review focusing on:
+            - Files flagged as Medium/High risk in the triage summary
+            - Code quality and logic errors
+            - Test coverage for new code
+            - Basic security issues
+
+            Provide actionable feedback with specific file:line references.

@@ -1,0 +1,48 @@
+name: Claude Code Review (Complex)
+
+on:
+  pull_request:
+    types: [labeled]
+
+jobs:
+  review-complex:
+    # Only trigger when claude-complex label is applied
+    if: github.event.label.name == 'claude-complex'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Run Claude Complex Review
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          model: claude-sonnet-4-20250514
+          claude_args: "--max-turns 20"
+          custom_instructions: |
+            You are a senior code review agent for complex PRs.
+            Follow the instructions in .claude/prompts/review-complex.md exactly.
+
+            First, find the triage summary by looking for a PR comment containing
+            "CLAUDE_TRIAGE_SUMMARY". Use the gh CLI to list PR comments and find it.
+
+            Then perform a comprehensive review covering:
+            - Architectural fit and design patterns
+            - Algorithm correctness and complexity
+            - Security vulnerabilities (OWASP Top 10)
+            - Test coverage including edge cases
+            - Lean proof validity (if applicable)
+
+            For this codebase (LeanVerifier), pay special attention to:
+            - Lean proofs: No vacuous proofs, proper use of rfl/native_decide
+            - Python: Type hints, docstrings, no bare except blocks
+            - Circuit proofs: Sparse representations, Lipschitz error bounds
+
+            Provide detailed, actionable feedback with specific file:line references.
