@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Any
 import numpy as np
 
-from .certifier import CertificationMetrics, LipschitzBounds, compute_global_error_bound
+from extraction.blockcert.certifier import CertificationMetrics, LipschitzBounds, compute_global_error_bound
 
 
 @dataclass

@@ -12,7 +12,7 @@ This interpreter is designed to:
 
 import numpy as np
 from typing import Optional, Tuple
-from .ir import BlockIR, AttentionIR, MLPIR, NormIR
+from extraction.blockcert.ir import BlockIR, AttentionIR, MLPIR, NormIR
 
 
 class BlockInterpreter:

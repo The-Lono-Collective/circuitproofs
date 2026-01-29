@@ -7,16 +7,14 @@ from transformer models with certified error bounds.
 Components:
 - ir: Intermediate Representation (.npz storage)
 - interpreter: Pure Python block execution
-- tracer: Hook-based activation tracing
 - certifier: Metrics computation with auto-LiRPA
 - certificate: Certificate artifact generation
 """
 
-from .ir import BlockIR, AttentionIR, MLPIR, NormIR
-from .interpreter import BlockInterpreter
-from .tracer import ActivationTracer, TraceDataset
-from .certifier import BlockCertifier, CertificationMetrics
-from .certificate import Certificate, generate_certificate
+from extraction.blockcert.ir import BlockIR, AttentionIR, MLPIR, NormIR, TraceRecord, TraceDataset
+from extraction.blockcert.interpreter import BlockInterpreter
+from extraction.blockcert.certifier import BlockCertifier, CertificationMetrics
+from extraction.blockcert.certificate import Certificate, generate_certificate
 
 __all__ = [
     # IR
@@ -24,11 +22,11 @@ __all__ = [
     "AttentionIR",
     "MLPIR",
     "NormIR",
+    # Trace data
+    "TraceRecord",
+    "TraceDataset",
     # Interpreter
     "BlockInterpreter",
-    # Tracer
-    "ActivationTracer",
-    "TraceDataset",
     # Certifier
     "BlockCertifier",
     "CertificationMetrics",

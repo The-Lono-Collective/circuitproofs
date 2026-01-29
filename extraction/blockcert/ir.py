@@ -13,7 +13,7 @@ Layout:
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional, Dict, Any, Literal
+from typing import Dict, Any, List, Literal, Optional, Tuple
 import numpy as np
 import hashlib
 
@@ -462,3 +462,103 @@ class BlockIR:
             causal_mask=causal_mask,
             metadata=metadata,
         )
+
+
+@dataclass
+class TraceRecord:
+    """Single trace record for a block."""
+
+    block_idx: int
+    input_activations: np.ndarray  # [seq_len, d_model]
+    output_activations: np.ndarray  # [seq_len, d_model]
+    attention_mask: Optional[np.ndarray] = None  # [seq_len, seq_len]
+    attention_weights: Optional[np.ndarray] = None  # [num_heads, seq_len, seq_len]
+    prompt_id: Optional[str] = None
+
+
+@dataclass
+class TraceDataset:
+    """
+    Dataset of trace records for certification.
+
+    D_l = {(x^(l), x^(l+1), m_l)} for all prompts
+    """
+
+    block_idx: int
+    records: List[TraceRecord] = field(default_factory=list)
+
+    def __len__(self) -> int:
+        return len(self.records)
+
+    def __getitem__(self, idx: int) -> TraceRecord:
+        return self.records[idx]
+
+    def add_record(self, record: TraceRecord) -> None:
+        """Add a trace record."""
+        assert record.block_idx == self.block_idx
+        self.records.append(record)
+
+    def get_inputs(self) -> np.ndarray:
+        """Get all input activations stacked. Shape: [num_records, seq_len, d_model]"""
+        return np.stack([r.input_activations for r in self.records])
+
+    def get_outputs(self) -> np.ndarray:
+        """Get all output activations stacked. Shape: [num_records, seq_len, d_model]"""
+        return np.stack([r.output_activations for r in self.records])
+
+    def get_flat_tokens(self) -> Tuple[np.ndarray, np.ndarray]:
+        """
+        Get all tokens flattened for per-token analysis.
+
+        Returns:
+            inputs: [total_tokens, d_model]
+            outputs: [total_tokens, d_model]
+        """
+        inputs = []
+        outputs = []
+        for record in self.records:
+            inputs.append(record.input_activations.reshape(-1, record.input_activations.shape[-1]))
+            outputs.append(record.output_activations.reshape(-1, record.output_activations.shape[-1]))
+
+        return np.concatenate(inputs, axis=0), np.concatenate(outputs, axis=0)
+
+    def save(self, path: Path) -> None:
+        """Save dataset to .npz file."""
+        data = {
+            "block_idx": self.block_idx,
+            "num_records": len(self.records),
+        }
+
+        for i, record in enumerate(self.records):
+            data[f"input_{i}"] = record.input_activations
+            data[f"output_{i}"] = record.output_activations
+            if record.attention_mask is not None:
+                data[f"attn_mask_{i}"] = record.attention_mask
+            if record.attention_weights is not None:
+                data[f"attn_weights_{i}"] = record.attention_weights
+            if record.prompt_id is not None:
+                data[f"prompt_id_{i}"] = record.prompt_id
+
+        np.savez(path, **data)
+
+    @classmethod
+    def load(cls, path: Path) -> "TraceDataset":
+        """Load dataset from .npz file."""
+        data = np.load(path, allow_pickle=True)
+        block_idx = int(data["block_idx"])
+        num_records = int(data["num_records"])
+
+        dataset = cls(block_idx=block_idx)
+
+        for i in range(num_records):
+            record = TraceRecord(
+                block_idx=block_idx,
+                input_activations=data[f"input_{i}"],
+                output_activations=data[f"output_{i}"],
+                attention_mask=data.get(f"attn_mask_{i}"),
+                attention_weights=data.get(f"attn_weights_{i}"),
+                prompt_id=data.get(f"prompt_id_{i}"),
+            )
+            dataset.add_record(record)
+
+        return dataset

@@ -15,9 +15,7 @@ import FormalVerifML.base.symbolic_models
 import FormalVerifML.base.memory_optimized_models  -- Memory optimization
 import FormalVerifML.base.smt_integration          -- SMT solver integration
 import FormalVerifML.base.large_scale_models       -- 100M+ parameter models
-import FormalVerifML.base.vision_models            -- Vision Transformers
 import FormalVerifML.base.distributed_verification -- Distributed verification
-import FormalVerifML.base.enterprise_features      -- Enterprise features
 import FormalVerifML.base.circuit_models           -- Certified Proof-Carrying Circuits
 import FormalVerifML.base.circuit_equivalence      -- Circuit equivalence for counterfactual testing
 
@@ -52,27 +50,6 @@ theorem sample_transformer_exists : True :=
   let _ := sampleTransformer;
   trivial
 
-/--
-  Enterprise features are properly integrated.
---/
-theorem enterprise_features_integrated : True :=
-  let _ : EnterpriseConfig := {
-    enableAuthentication := true,
-    sessionTimeout := 3600,
-    maxSessionsPerUser := 5,
-    enableRoleBasedAccess := true,
-    defaultRole := "user",
-    enableAuditLogging := true,
-    auditRetentionDays := 90,
-    logSensitiveActions := true,
-    enableRateLimiting := true,
-    maxRequestsPerMinute := 100,
-    enableEncryption := true,
-    maxConcurrentJobs := 10,
-    jobTimeout := 300,
-    enableCaching := true
-  };
-  trivial
 
 /--
   Large-scale models are properly integrated.
@@ -104,33 +81,6 @@ theorem large_scale_models_integrated : True :=
   };
   trivial
 
-/--
-  Vision models are properly integrated.
---/
-theorem vision_models_integrated : True :=
-  let _ : VisionTransformer := {
-    imageSize := 224,
-    patchSize := 16,
-    numChannels := 3,
-    dModel := 768,
-    numHeads := 12,
-    numLayers := 12,
-    numClasses := 1000,
-    maxSeqLen := 197,  -- (224/16)^2 + 1 for CLS token
-    useClassToken := true,
-    usePositionalEmbeddings := true,
-    useLayerNorm := true,
-    patchEmbeddings := Array.mkEmpty 0,
-    classToken := Array.mkEmpty 0,
-    positionalEmbeddings := Array.mkEmpty 0,
-    attentionHeads := Array.mkEmpty 0,
-    layerNorms1 := Array.mkEmpty 0,
-    layerNorms2 := Array.mkEmpty 0,
-    ffWeights1 := Array.mkEmpty 0,
-    ffWeights2 := Array.mkEmpty 0,
-    outputProjection := (Array.mkEmpty 0, Array.mkEmpty 0)
-  };
-  trivial
 
 /--
   Distributed verification is properly integrated.

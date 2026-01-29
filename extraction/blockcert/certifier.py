@@ -17,9 +17,8 @@ from dataclasses import dataclass, field
 from typing import Optional, Dict, List, Tuple, Any, Literal
 from pathlib import Path
 
-from .ir import BlockIR, AttentionIR, MLPIR
-from .interpreter import BlockInterpreter
-from .tracer import TraceDataset
+from extraction.blockcert.ir import BlockIR, AttentionIR, MLPIR, TraceDataset
+from extraction.blockcert.interpreter import BlockInterpreter
 
 logger = logging.getLogger(__name__)
 
