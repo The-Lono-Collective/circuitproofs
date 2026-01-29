@@ -47,23 +47,15 @@ Martian criticizes current interpretability for being:
 
 ## Critical Blockers (Must Fix First)
 
-### 1. `_evaluate_circuit()` Stub
+### 1. SheafCert Extraction Pipeline (Not Yet Implemented)
 
-**Location:** `extraction/circuit_extractor.py:340-353`
+**Location:** `extraction/blockcert/` (existing BlockCert modules); new SheafCert pipeline TBD
 
-**Current State:**
-```python
-def _evaluate_circuit(self, circuit_components, inputs):
-    # Simplified: return original model output
-    # A full implementation would build a sparse model
-    return self.model(inputs)  # ← THIS IS WRONG
-```
+**Current State:** The legacy `circuit_extractor.py` has been archived to the `archive/legacy-blockcert` branch. The replacement SheafCert pipeline (CD-T + DiscoGP) has not been implemented.
 
-**Problem:** Returns original model output instead of sparse circuit output. Error bounds are meaningless without this.
+**Required:** Implement the new extraction pipeline building on the existing BlockCert IR, interpreter, certifier, and certificate modules.
 
-**Required Fix:** Build and evaluate a masked/sparse network using the circuit components.
-
-**Expert Needed:** MI/PyTorch engineer (2-3 days)
+**Expert Needed:** MI/PyTorch engineer
 
 ### 2. Lipschitz Bound Tightness
 
@@ -100,13 +92,13 @@ if ratio > 100:
 
 | Task | Owner | Effort | Gate |
 |------|-------|--------|------|
-| Fix `_evaluate_circuit()` stub | MI engineer | 2-3 days | Sparse model evaluates correctly |
+| Implement SheafCert extraction pipeline | MI engineer | TBD | New pipeline produces valid circuits |
 | Run Lipschitz tightness validation | MI engineer | 1-2 days | **Ratio < 100x** |
 | Complete `lipschitz_composition_bound` | Lean expert | 1 week | Compiles without sorry |
 | Complete `property_transfer` theorem | Lean expert | 1 week | Compiles without sorry |
 
 **Exit Criteria:**
-- [ ] `_evaluate_circuit()` returns actual sparse circuit output
+- [ ] SheafCert extraction pipeline produces valid circuit output
 - [ ] Tightness ratio < 100x on DeepSeek-Coder-1.3B test
 - [ ] Core Lean theorems compile without `sorry`
 - [ ] `lake build` passes
@@ -129,8 +121,8 @@ Run tightness validation on DeepSeek-Coder-1.3B solving 3 MBPP problems.
 |------|-------|--------|------------|
 | Implement `fetch_dataset.py` | Python eng | 1 day | — |
 | Implement `run_benchmark.py` | Python eng | 2-3 days | fetch_dataset |
-| Implement `variant_generator.py` | Python eng | 2 days | run_benchmark |
-| Implement `circuit_comparator.py` | Python eng | 2 days | run_benchmark |
+| Implement counterfactual variant testing | Python eng | 2 days | run_benchmark |
+| Implement cross-model circuit comparison | Python eng | 2 days | run_benchmark |
 | Test on DeepSeek-Coder-1.3B | ML eng | 3-4 days | All above |
 
 **Exit Criteria:**
@@ -265,7 +257,7 @@ Run tightness validation on DeepSeek-Coder-1.3B solving 3 MBPP problems.
 
 | File | Change | Priority |
 |------|--------|----------|
-| `extraction/circuit_extractor.py:340` | Implement `_evaluate_circuit()` | P0 |
+| `extraction/blockcert/` | Implement SheafCert pipeline (CD-T + DiscoGP) | P0 |
 | `lean/FormalVerifML/base/circuit_models.lean:203` | Complete `lipschitz_composition_bound` | P0 |
 | `lean/FormalVerifML/base/circuit_models.lean:217` | Complete `property_transfer` | P0 |
 | `lean/FormalVerifML/proofs/circuit_proofs.lean` | Complete all `sorry` | P0 |
@@ -276,8 +268,8 @@ Run tightness validation on DeepSeek-Coder-1.3B solving 3 MBPP problems.
 |------|---------|----------|
 | `benchmarks/verina/fetch_dataset.py` | Download MBPP-Lean | P0 |
 | `benchmarks/verina/run_benchmark.py` | Run extraction + verification | P0 |
-| `benchmarks/verina/variant_generator.py` | Counterfactual testing | P1 |
-| `benchmarks/verina/circuit_comparator.py` | Cross-model comparison | P1 |
+| Counterfactual variant testing | Semantic verification | P1 |
+| Cross-model circuit comparison | Generalization evidence | P1 |
 | `scripts/validate_tightness.py` | Lipschitz bound validation | P0 |
 
 ### Can Ignore (Deprioritized)
@@ -285,10 +277,7 @@ Run tightness validation on DeepSeek-Coder-1.3B solving 3 MBPP problems.
 | File/Directory | Reason |
 |----------------|--------|
 | `webapp/` | Web UI not needed |
-| `translator/test_huggingface_models.py` | Vision model tests |
-| `translator/test_enterprise_features.py` | Enterprise tests |
-| `lean/FormalVerifML/base/vision_models.lean` | Vision not in scope |
-| `lean/FormalVerifML/base/enterprise_features.lean` | Enterprise not in scope |
+| `archive/legacy-blockcert` branch | Archived: vision_models.lean, enterprise_features.lean, circuit_extractor.py, test files, etc. |
 
 ---
 

@@ -13,8 +13,8 @@ This module will integrate the MBPP (Mostly Basic Python Problems) subset from t
 | `README.md` | ✅ Complete | This documentation |
 | `fetch_dataset.py` | ❌ **Not implemented** | Download VERINA dataset |
 | `run_benchmark.py` | ❌ **Not implemented** | Run extraction + verification |
-| `variant_generator.py` | ❌ **Not implemented** | Generate counterfactual variants |
-| `circuit_comparator.py` | ❌ **Not implemented** | Compare circuits across models |
+| Counterfactual variant testing | ❌ **Not implemented** | Generate counterfactual variants |
+| Cross-model circuit comparison | ❌ **Not implemented** | Compare circuits across models |
 | `data/` | ❌ **Empty** | Downloaded tasks go here |
 
 ---
@@ -99,52 +99,13 @@ def run_full_benchmark(
     pass
 ```
 
-### 3. `variant_generator.py` (P1)
+### 3. Counterfactual Variant Testing (P1)
 
-```python
-"""
-Generate semantic-preserving variants of MBPP problems.
-Used for counterfactual testing.
-"""
+Generate semantic-preserving variants of MBPP problems for counterfactual testing (e.g., rename variables, reorder parameters). Implementation TBD.
 
-def generate_variants(problem: MBPPTask) -> List[MBPPTask]:
-    """
-    Generate variants:
-    - Rename variables: `numbers` → `values`
-    - Reorder parameters: `(a, b)` → `(b, a)`
-    - Change formatting: whitespace, comments
-    """
-    # TODO: Implement
-    pass
-```
+### 4. Cross-Model Circuit Comparison (P1)
 
-### 4. `circuit_comparator.py` (P1)
-
-```python
-"""
-Compare circuits extracted from different models or variants.
-Used to demonstrate generalization.
-"""
-
-def compare_circuits(
-    circuit1: Circuit,
-    circuit2: Circuit
-) -> ComparisonResult:
-    """
-    Compare two circuits for structural similarity.
-    Returns similarity score and differences.
-    """
-    # TODO: Implement
-    pass
-
-def compare_across_models(
-    problem_id: str,
-    model_names: List[str]
-) -> CrossModelComparison:
-    """Compare circuits from multiple models solving same problem."""
-    # TODO: Implement
-    pass
-```
+Compare circuits extracted from different models or variants to demonstrate generalization. Implementation TBD.
 
 ---
 
@@ -182,8 +143,8 @@ benchmarks/verina/
 ├── README.md              # This file
 ├── fetch_dataset.py       # Download VERINA dataset
 ├── run_benchmark.py       # Execute benchmark pipeline
-├── variant_generator.py   # Generate input variants
-├── circuit_comparator.py  # Compare circuits
+├── (variant testing)      # TBD: Generate input variants
+├── (circuit comparison)   # TBD: Compare circuits
 └── data/                  # Downloaded tasks (gitignored)
     └── mbpp/              # MBPP-specific problems
         ├── task_001/

@@ -14,7 +14,7 @@ This project targets the [Martian Interpretability Challenge](https://withmartia
 
 | Component | Status | Description |
 |-----------|--------|-------------|
-| **Circuit Extraction** | ⚠️ 70% | Core works, `_evaluate_circuit()` is stub |
+| **Circuit Extraction** | ⚠️ Redesigning | BlockCert modules exist; SheafCert pipeline TBD |
 | **Circuit → Lean Translation** | ✅ 85% | Generates valid Lean code |
 | **Lean Core Definitions** | ✅ 100% | All structures defined |
 | **Lean Proofs** | ❌ 40% | 16 theorems have `sorry` placeholders |
@@ -22,7 +22,7 @@ This project targets the [Martian Interpretability Challenge](https://withmartia
 | **Distributed Extraction** | ⚠️ 60% | Infrastructure exists, not tested at scale |
 
 **Critical Blockers:**
-- `_evaluate_circuit()` stub prevents accurate error bounds
+- SheafCert extraction pipeline not yet implemented (legacy `circuit_extractor.py` archived)
 - `property_transfer` theorem incomplete (core value proposition)
 - `lipschitz_composition_bound` theorem incomplete
 - MBPP benchmark runner not implemented
@@ -120,29 +120,13 @@ pip install -r translator/requirements.txt
 lake build
 ```
 
-### Run End-to-End Demo (Current State)
-
-```bash
-# This demonstrates the pipeline on a toy model
-# Note: Uses stubs for circuit evaluation
-python examples/end_to_end_pipeline.py
-```
-
-### Run Circuit Extraction (Partial)
+### Circuit Extraction (BlockCert API)
 
 ```python
-from extraction.circuit_extractor import extract_transformer_circuit
+from extraction.blockcert import BlockCertifier, BlockIR, BlockInterpreter, Certificate
 
-# Note: _evaluate_circuit() is a stub - error bounds are approximate
-circuit_data = extract_transformer_circuit(
-    model=your_model,
-    calibration_data=calib_data,
-    calibration_targets=calib_targets,
-    test_data=test_data,
-    test_targets=test_targets,
-    output_path="circuit.json",
-    pruning_threshold=0.01
-)
+# BlockCert modules provide the IR, interpreter, certifier, and certificate generation.
+# The SheafCert extraction pipeline (CD-T + DiscoGP) is planned but not yet implemented.
 ```
 
 ---
@@ -153,16 +137,13 @@ circuit_data = extract_transformer_circuit(
 
 | Feature | Status | Notes |
 |---------|--------|-------|
-| `CircuitExtractor` class | ✅ Implemented | |
-| Gradient-based importance | ✅ Implemented | |
-| Activation-based importance | ✅ Implemented | |
-| Edge pruning | ✅ Implemented | |
-| Lipschitz constant estimation | ✅ Implemented | |
-| `_evaluate_circuit()` | ❌ **STUB** | Returns original model output |
-| Error bound computation | ⚠️ Partial | Depends on stub above |
-| JSON export with hash | ✅ Implemented | |
+| BlockCert IR | ✅ Implemented | `extraction/blockcert/ir.py` |
+| Block Interpreter | ✅ Implemented | `extraction/blockcert/interpreter.py` |
+| Block Certifier | ✅ Implemented | `extraction/blockcert/certifier.py` |
+| Certificate Generation | ✅ Implemented | `extraction/blockcert/certificate.py` |
+| SheafCert Pipeline (CD-T + DiscoGP) | ❌ **Not implemented** | Planned replacement for archived `circuit_extractor.py` |
 
-**Critical Issue:** `_evaluate_circuit()` at `extraction/circuit_extractor.py:340` is a stub. It returns the original model's output instead of evaluating the sparse circuit. This means error bounds are not accurate.
+**Note:** The legacy `circuit_extractor.py` has been archived to the `archive/legacy-blockcert` branch. The SheafCert extraction pipeline is planned but not yet implemented.
 
 ### Component B: Translation (`translator/`)
 
@@ -193,8 +174,8 @@ circuit_data = extract_transformer_circuit(
 | README documentation | ✅ Complete | |
 | `fetch_dataset.py` | ❌ Not implemented | Scaffold only |
 | `run_benchmark.py` | ❌ Not implemented | Scaffold only |
-| `variant_generator.py` | ❌ Not implemented | For counterfactual testing |
-| `circuit_comparator.py` | ❌ Not implemented | For cross-model comparison |
+| Counterfactual variant testing | ❌ Not implemented | For semantic verification |
+| Cross-model circuit comparison | ❌ Not implemented | For generalization evidence |
 
 ---
 
@@ -203,7 +184,7 @@ circuit_data = extract_transformer_circuit(
 See [ROADMAP.md](ROADMAP.md) for detailed phases and timeline.
 
 ### Phase 1: Critical Path (Weeks 1-2)
-- [ ] Fix `_evaluate_circuit()` stub
+- [ ] Implement SheafCert extraction pipeline
 - [ ] Validate Lipschitz bound tightness (< 100x empirical)
 - [ ] Complete `property_transfer` theorem
 - [ ] Complete `lipschitz_composition_bound` theorem
@@ -240,8 +221,7 @@ See [ROADMAP.md](ROADMAP.md) for detailed phases and timeline.
 ```
 circuitproofs/
 ├── extraction/                 # Component A: Circuit extraction
-│   ├── circuit_extractor.py   # Main extraction (⚠️ has stub)
-│   └── example_extraction.py  # Demo script
+│   └── blockcert/             # BlockCert modules (IR, interpreter, certifier, certificate)
 ├── translator/                 # Component B: Translation
 │   ├── circuit_to_lean.py     # Circuit → Lean
 │   └── generate_lean_model.py # Generic model → Lean

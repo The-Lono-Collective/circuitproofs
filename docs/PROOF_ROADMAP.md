@@ -287,7 +287,7 @@ complete_circuit_verification
 
 - See `docs/CERTIFIED_CIRCUITS.md` for theoretical background
 - See `ROADMAP.md` for project priorities
-- See `extraction/circuit_extractor.py` for Python implementation
+- See `extraction/blockcert/` for Python extraction modules
 
 ---
 
