@@ -8,9 +8,59 @@ import subprocess
 import json
 import time
 import os
+import sys
 import argparse
+import shutil
 from pathlib import Path
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Tuple
+
+
+def run_with_live_output(
+    cmd: List[str], timeout: int, description: str
+) -> Tuple[int, str, str]:
+    """
+    Run a command with live output that overwrites the current line.
+    Returns (return_code, stdout, stderr).
+    """
+    process = subprocess.Popen(
+        cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        bufsize=1,
+    )
+
+    terminal_width = shutil.get_terminal_size((80, 20)).columns
+    output_lines = []
+    start_time = time.time()
+
+    try:
+        while True:
+            # Check timeout
+            if time.time() - start_time > timeout:
+                process.kill()
+                process.wait()
+                raise subprocess.TimeoutExpired(cmd, timeout)
+
+            line = process.stdout.readline()
+            if not line and process.poll() is not None:
+                break
+
+            if line:
+                line = line.rstrip()
+                output_lines.append(line)
+                # Truncate line to terminal width and overwrite
+                display_line = line[:terminal_width - 3] + "..." if len(line) > terminal_width else line
+                print(f"\r{display_line:<{terminal_width}}", end="", flush=True)
+
+        # Clear the progress line
+        print(f"\r{' ' * terminal_width}\r", end="", flush=True)
+
+        return process.returncode, "\n".join(output_lines), ""
+
+    except subprocess.TimeoutExpired:
+        print(f"\r{' ' * terminal_width}\r", end="", flush=True)
+        raise
 
 
 class ComprehensiveTestRunner:
@@ -27,9 +77,24 @@ class ComprehensiveTestRunner:
         print("RUNNING HUGGINGFACE MODEL TESTS")
         print("=" * 60)
 
+        # Check for required dependencies first
+        try:
+            import importlib.util
+            missing_deps = []
+            for dep in ["torch", "transformers", "psutil"]:
+                if importlib.util.find_spec(dep) is None:
+                    missing_deps.append(dep)
+
+            if missing_deps:
+                print(f"⚠️  Skipping HuggingFace tests: missing {', '.join(missing_deps)}")
+                return {"status": "skipped", "reason": f"Missing dependencies: {', '.join(missing_deps)}"}
+        except Exception as e:
+            print(f"⚠️  Skipping HuggingFace tests: dependency check failed ({e})")
+            return {"status": "skipped", "reason": str(e)}
+
         try:
             cmd = [
-                "py",
+                sys.executable,
                 "translator/test_huggingface_models.py",
                 "--model_size",
                 self.config.get("huggingface_model_size", "small"),
@@ -37,16 +102,21 @@ class ComprehensiveTestRunner:
                 "test_results_huggingface.json",
             ]
 
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+            returncode, stdout, _ = run_with_live_output(
+                cmd, timeout=300, description="HuggingFace tests"
+            )
 
-            if result.returncode == 0:
-                with open("test_results_huggingface.json", "r") as f:
-                    results = json.load(f)
+            if returncode == 0:
+                try:
+                    with open("test_results_huggingface.json", "r") as f:
+                        results = json.load(f)
+                except (FileNotFoundError, json.JSONDecodeError):
+                    results = {"output": stdout}
                 print("✅ HuggingFace tests completed successfully")
                 return {"status": "success", "results": results}
             else:
-                print(f"❌ HuggingFace tests failed: {result.stderr}")
-                return {"status": "error", "error": result.stderr}
+                print("❌ HuggingFace tests failed")
+                return {"status": "error", "error": stdout}
 
         except subprocess.TimeoutExpired:
             print("❌ HuggingFace tests timed out")
@@ -56,27 +126,29 @@ class ComprehensiveTestRunner:
             return {"status": "error", "error": str(e)}
 
     def run_lean_build(self) -> Dict[str, Any]:
-        """Run Lean build to ensure all modules compile."""
+        """Run Lean build via Docker to ensure all modules compile."""
         print("=" * 60)
-        print("RUNNING LEAN BUILD")
+        print("RUNNING DOCKER BUILD (this may take ~15 minutes)")
         print("=" * 60)
 
         try:
-            cmd = ["lake", "build"]
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+            cmd = ["docker", "build", "-t", "circuitproofs", "."]
+            returncode, stdout, _ = run_with_live_output(
+                cmd, timeout=1800, description="Docker build"
+            )
 
-            if result.returncode == 0:
-                print("✅ Lean build completed successfully")
-                return {"status": "success"}
+            if returncode == 0:
+                print("✅ Docker build completed successfully")
+                return {"status": "success", "output": stdout}
             else:
-                print(f"❌ Lean build failed: {result.stderr}")
-                return {"status": "error", "error": result.stderr}
+                print("❌ Docker build failed")
+                return {"status": "error", "error": stdout}
 
         except subprocess.TimeoutExpired:
-            print("❌ Lean build timed out")
+            print("❌ Docker build timed out (>30 minutes)")
             return {"status": "timeout"}
         except Exception as e:
-            print(f"❌ Lean build error: {str(e)}")
+            print(f"❌ Docker build error: {str(e)}")
             return {"status": "error", "error": str(e)}
 
     def run_lean_tests(self) -> Dict[str, Any]:
@@ -86,16 +158,17 @@ class ComprehensiveTestRunner:
         print("=" * 60)
 
         try:
-            # Run Lean with our test suite
-            cmd = ["lake", "exe", "FormalVerifML"]
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=180)
+            cmd = ["lake", "exe", "formal_verif_ml_exe"]
+            returncode, stdout, _ = run_with_live_output(
+                cmd, timeout=180, description="Lean verification"
+            )
 
-            if result.returncode == 0:
+            if returncode == 0:
                 print("✅ Lean verification tests completed successfully")
-                return {"status": "success", "output": result.stdout}
+                return {"status": "success", "output": stdout}
             else:
-                print(f"❌ Lean verification tests failed: {result.stderr}")
-                return {"status": "error", "error": result.stderr}
+                print("❌ Lean verification tests failed")
+                return {"status": "error", "error": stdout}
 
         except subprocess.TimeoutExpired:
             print("❌ Lean verification tests timed out")
@@ -111,9 +184,8 @@ class ComprehensiveTestRunner:
         print("=" * 60)
 
         try:
-            # Test memory-optimized transformer generation
             cmd = [
-                "py",
+                sys.executable,
                 "translator/generate_lean_model.py",
                 "--model_json",
                 "translator/sample_transformer.json",
@@ -121,14 +193,16 @@ class ComprehensiveTestRunner:
                 "lean/FormalVerifML/generated/memory_optimized_test.lean",
             ]
 
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+            returncode, stdout, _ = run_with_live_output(
+                cmd, timeout=60, description="Memory optimization"
+            )
 
-            if result.returncode == 0:
+            if returncode == 0:
                 print("✅ Memory optimization tests completed successfully")
-                return {"status": "success"}
+                return {"status": "success", "output": stdout}
             else:
-                print(f"❌ Memory optimization tests failed: {result.stderr}")
-                return {"status": "error", "error": result.stderr}
+                print("❌ Memory optimization tests failed")
+                return {"status": "error", "error": stdout}
 
         except subprocess.TimeoutExpired:
             print("❌ Memory optimization tests timed out")
@@ -144,16 +218,17 @@ class ComprehensiveTestRunner:
         print("=" * 60)
 
         try:
-            # Test SMT formula generation
-            cmd = ["lake", "exe", "FormalVerifML"]
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+            cmd = ["lake", "exe", "formal_verif_ml_exe"]
+            returncode, stdout, _ = run_with_live_output(
+                cmd, timeout=120, description="SMT integration"
+            )
 
-            if result.returncode == 0:
+            if returncode == 0:
                 print("✅ SMT integration tests completed successfully")
-                return {"status": "success", "output": result.stdout}
+                return {"status": "success", "output": stdout}
             else:
-                print(f"❌ SMT integration tests failed: {result.stderr}")
-                return {"status": "error", "error": result.stderr}
+                print("❌ SMT integration tests failed")
+                return {"status": "error", "error": stdout}
 
         except subprocess.TimeoutExpired:
             print("❌ SMT integration tests timed out")
@@ -171,7 +246,7 @@ class ComprehensiveTestRunner:
         try:
             # Start web server
             web_process = subprocess.Popen(
-                ["py", "webapp/app.py"], stdout=subprocess.PIPE, stderr=subprocess.PIPE
+                [sys.executable, "webapp/app.py"], stdout=subprocess.PIPE, stderr=subprocess.PIPE
             )
 
             # Wait for server to start
@@ -204,6 +279,38 @@ class ComprehensiveTestRunner:
             print(f"❌ Web interface tests error: {str(e)}")
             return {"status": "error", "error": str(e)}
 
+    def cleanup_docker(self) -> None:
+        """Prune Docker images created during testing."""
+        print("=" * 60)
+        print("CLEANING UP DOCKER RESOURCES")
+        print("=" * 60)
+
+        try:
+            # Remove the circuitproofs image
+            cmd = ["docker", "rmi", "-f", "circuitproofs"]
+            returncode, stdout, _ = run_with_live_output(
+                cmd, timeout=60, description="Docker image removal"
+            )
+
+            if returncode == 0:
+                print("✅ Docker image 'circuitproofs' removed")
+            else:
+                print("⚠️  Could not remove Docker image (may not exist)")
+
+            # Prune dangling images and build cache
+            cmd = ["docker", "image", "prune", "-f"]
+            returncode, stdout, _ = run_with_live_output(
+                cmd, timeout=60, description="Docker prune"
+            )
+
+            if returncode == 0:
+                print("✅ Docker dangling images pruned")
+            else:
+                print("⚠️  Docker prune had issues")
+
+        except Exception as e:
+            print(f"⚠️  Docker cleanup error: {str(e)}")
+
     def run_all_tests(self) -> Dict[str, Any]:
         """Run all comprehensive tests."""
         print("STARTING COMPREHENSIVE TEST SUITE")
@@ -225,6 +332,9 @@ class ComprehensiveTestRunner:
             else:
                 print(f"Skipping {category} (disabled in config)")
                 self.results[category] = {"status": "skipped"}
+
+        # Clean up Docker resources after all tests
+        self.cleanup_docker()
 
         return self.results
 

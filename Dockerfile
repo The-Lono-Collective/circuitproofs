@@ -25,8 +25,7 @@ RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 ENV PATH="/root/.local/bin:$PATH"
 
 # 7. Install Python dependencies using uv
-RUN uv pip install --system --no-cache -r translator/requirements.txt
-RUN uv pip install --system --no-cache flask graphviz
+RUN uv pip install --system --no-cache -r requirements.txt
 
 # 8. Update lake dependencies
 RUN lake update
