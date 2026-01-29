@@ -1,237 +1,139 @@
-# LeanVerifier: Certified Proof-Carrying Circuits for Mechanistic Interpretability
+# CircuitProofs: Formal Verification of Neural Network Circuits
 
-[![CI](https://github.com/the-lono-collective/circuitproofs/actions/workflows/lean_ci.yml/badge.svg)](https://github.com/the-lono-collective/circuitproofs/actions/workflows/lean_ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
 [![Lean 4](https://img.shields.io/badge/Lean-4-green.svg)](https://leanprover.github.io/)
-[![Docker](https://img.shields.io/badge/Docker-Ready-blue.svg)](https://www.docker.com/)
 
-> **Bridge mechanistic interpretability and formal verification**: Extract sparse circuits from neural networks and mathematically prove they satisfy formal specifications.
+> **Prove that extracted circuits match formal specifications** — not correlation, but mathematical certainty.
 
-> This project addresses a core challenge in AI interpretability: moving from "this circuit *looks* like it computes X" to "this circuit is *proven* to compute X."
+This project targets the [Martian Interpretability Challenge](https://withmartian.com/prize), addressing the core problem: current interpretability is correlational, not mechanistic. We provide **formal proofs** that extracted circuits implement specific algorithms.
 
-**Extended from [FormalVerifML](https://github.com/fraware/formal_verif_ml) with novel Certified Proof-Carrying Circuits capabilities.**
+---
 
-<p align="center">
-  <img src=".github/assets/FormalVerifML-RM.jpg" alt="FormalVerifML Logo" width="200"/>
-</p>
+## Project Status: Work In Progress
 
-## Table of Contents
+| Component | Status | Description |
+|-----------|--------|-------------|
+| **Circuit Extraction** | ⚠️ 70% | Core works, `_evaluate_circuit()` is stub |
+| **Circuit → Lean Translation** | ✅ 85% | Generates valid Lean code |
+| **Lean Core Definitions** | ✅ 100% | All structures defined |
+| **Lean Proofs** | ❌ 40% | 16 theorems have `sorry` placeholders |
+| **MBPP-Lean Benchmark** | ❌ 10% | Scaffolding only, not implemented |
+| **Distributed Extraction** | ⚠️ 60% | Infrastructure exists, not tested at scale |
 
-- [Overview](#overview)
-- [Key Features](#key-features)
-- [Architecture](#architecture)
-- [Quick Start](#quick-start)
-- [Installation](#installation)
-- [Usage](#usage)
-- [Documentation](#documentation)
-- [Contributing](#contributing)
-- [License](#license)
+**Critical Blockers:**
+- `_evaluate_circuit()` stub prevents accurate error bounds
+- `property_transfer` theorem incomplete (core value proposition)
+- `lipschitz_composition_bound` theorem incomplete
+- MBPP benchmark runner not implemented
 
-## Overview
+---
 
-LeanVerifier is a state-of-the-art framework for formally verifying machine learning models using Lean 4. It extends the original FormalVerifML with novel **Certified Proof-Carrying Circuits** that enable tractable verification of large models through sparse circuit extraction.
+## The Approach
 
-The framework provides comprehensive support for verifying properties such as robustness, fairness, interpretability, and safety across a wide range of model architectures.
+### Why This Wins
 
-### The Problem
+Most interpretability work says: *"This circuit **seems** to compute X based on our analysis."*
 
-Current mechanistic interpretability methods identify circuits in neural networks but can only say "this circuit correlates with behavior X." This is insufficient for:
-- **Safety-critical applications** requiring mathematical guarantees
-- **Regulatory compliance** demanding provable fairness
-- **Scientific understanding** needing causal, not correlational, explanations
+We say: *"This circuit is **proven** to compute X. Here's the Lean proof."*
 
-### Our Solution
-
-Extract circuits from models and **prove** they match formal specifications:
+### Architecture
 
 ```
-Model solves task → Extract circuit → Translate to Lean → Prove matches specification
+Code LLM solves MBPP problem (e.g., "sort a list")
+         ↓
+Extract sparse circuit from model (Component A)
+         ↓
+Translate circuit to Lean 4 (Component B)
+         ↓
+Prove circuit matches MBPP Lean specification (Component C)
+         ↓
+Certificate: "Circuit implements sorting algorithm within ε error"
 ```
 
-The output is a **mathematical certificate** that the circuit implements the claimed algorithm—not just on test cases, but for all possible inputs.
+### Key Innovation: Ground Truth Verification
 
-### MBPP-Lean Benchmark Integration
+The [MBPP-Lean benchmark](benchmarks/verina/) provides 49 programming problems with **pre-written Lean specifications**. These are the ground truth. We:
 
-We integrate the [VERINA benchmark](https://github.com/sunblaze-ucb/verina)'s MBPP-Lean subset (49 programming problems with formal Lean specifications) to:
-- **Validate extraction**: Prove extracted circuits match known specifications
-- **Enable counterfactual testing**: Verify circuits capture semantics, not syntax
-- **Provide ground truth**: Use pre-written specs as the "answer key"
+1. Have a code LLM solve the problem
+2. Extract the circuit it uses
+3. **Prove** the circuit matches the specification
 
-See [`benchmarks/verina/`](benchmarks/verina/) for details.
+This is mechanistic (causal), not correlational (pattern-matching).
 
-### What Makes This Fork Different
+---
 
-- **🔬 Certified Circuits**: Novel pipeline combining BlockCert-style extraction with formal verification
-- **Mathematical Rigor**: Uses Lean 4 theorem prover for formal mathematical proofs
-- **Tractable Verification**: 70-90% sparsity enables verification of previously intractable models
-- **Production Ready**: Enterprise features with multi-user support, audit logging, and security
-- **Scalable**: Supports models up to 100M+ parameters with distributed verification
-- **Comprehensive**: Vision transformers, large-scale models, and advanced architectures
-- **Automated**: SMT solver integration for automated proof generation
+## Project Scope
 
-## Key Features
+### In Scope (Martian Challenge Focus)
 
-### 🔬 Certified Proof-Carrying Circuits (NEW!)
+| Feature | Purpose |
+|---------|---------|
+| Circuit extraction from code LLMs | Identify computational subgraphs |
+| Lipschitz error bounds | Certify approximation quality |
+| Lean 4 formal verification | Mathematical proofs |
+| MBPP-Lean benchmark | Ground truth specifications |
+| Cross-model generalization | Same algorithm → same circuit |
+| Distributed extraction | Scale to 70B parameter models |
 
-**Bridge interpretability and formal verification** with our novel pipeline that:
-- **Extracts** sparse, interpretable circuits from neural networks
-- **Certifies** error bounds using Lipschitz composition (BlockCert-style)
-- **Verifies** safety properties on tractable circuit representations
+### Out of Scope (Deprioritized)
 
-See [Certified Circuits Documentation](docs/CERTIFIED_CIRCUITS.md) for details.
+| Feature | Status | Reason |
+|---------|--------|--------|
+| Vision models (ViT, CLIP) | Deprioritized | Not code generation |
+| Enterprise features (auth, audit) | Deprioritized | Not needed for challenge |
+| Web interface | Deprioritized | CLI sufficient |
+| Generic HuggingFace support | Deprioritized | Focus on code LLMs only |
 
-### Model Support
+---
 
-- **Neural Networks**: Feed-forward, convolutional, recurrent architectures
-- **Transformers**: Full transformer support with multi-head attention
-- **Vision Models**: ViT, Swin Transformers, CLIP-style multi-modal models
-- **Large-Scale Models**: 100M+ parameter models with distributed processing
-- **Decision Trees**: Interpretable tree-based models
-- **Linear Models**: Logistic regression and linear classifiers
-- **🆕 Circuits**: Sparse computational subgraphs with certified error bounds
+## Target Models
 
-### Verification Properties
+| Model | Size | Purpose |
+|-------|------|---------|
+| DeepSeek-Coder-1.3B | 1.3B | Fast iteration |
+| StarCoder-7B | 7B | Main experiments |
+| CodeLlama-34B | 34B | Generalization |
+| CodeLlama-70B | 70B | Scale demonstration |
 
-- **Robustness**: Adversarial robustness and input perturbation resistance
-- **Fairness**: Demographic parity, equalized odds, individual fairness
-- **Interpretability**: Attention analysis, feature attribution verification
-- **Safety**: Causal masking, sequence invariance, memory efficiency
-- **Performance**: Memory optimization, distributed verification
-
-### Enterprise Features
-
-- **Multi-User Support**: Role-based access control and session management
-- **Audit Logging**: Comprehensive activity tracking and compliance
-- **Security**: Rate limiting, encryption, and input validation
-- **Distributed Processing**: Multi-node verification with fault tolerance
-- **Monitoring**: Real-time performance metrics and health checks
-
-## Architecture
-
-```
-circuitproofs/
-├── lean/                          # Lean 4 formal verification code
-│   ├── FormalVerifML/
-│   │   ├── base/                  # Core definitions and properties
-│   │   │   ├── circuit_models.lean  # 🆕 Circuit definitions
-│   │   │   └── ...
-│   │   ├── generated/             # Auto-generated model definitions
-│   │   └── proofs/                # Verification proof scripts
-│   │       ├── circuit_proofs.lean  # 🆕 Circuit verification
-│   │       └── ...
-├── extraction/                    # 🆕 Circuit extraction from models
-│   ├── circuit_extractor.py      # BlockCert-style extraction
-│   └── example_extraction.py     # Example usage
-├── translator/                    # Model translation and testing
-│   ├── export_from_pytorch.py    # PyTorch model export
-│   ├── generate_lean_model.py    # JSON to Lean code generation
-│   ├── circuit_to_lean.py        # 🆕 Circuit to Lean translation
-│   └── test_*.py                 # Comprehensive test suites
-├── examples/                      # 🆕 End-to-end examples
-│   └── end_to_end_pipeline.py    # Complete circuit pipeline
-├── webapp/                       # Web interface and visualization
-├── docs/                         # Documentation and guides
-│   ├── CERTIFIED_CIRCUITS.md     # 🆕 Circuits documentation
-│   └── ...
-└── .github/                      # CI/CD and workflows
-```
-
-### Data Flow
-
-1. **Model Export**: PyTorch/HuggingFace models → JSON format
-2. **Code Generation**: JSON → Lean 4 definitions
-3. **Verification**: Lean 4 → Formal proofs of properties
-4. **Results**: Web interface visualization and reports
+---
 
 ## Quick Start
 
 ### Prerequisites
 
-- **Docker** (recommended) or **Python 3.9+** and **Lean 4**
-- **8GB+ RAM** for large model verification
-- **Modern web browser** for the interface
+- Python 3.9+
+- Lean 4 (v4.18.0-rc1)
+- PyTorch 2.0+
+- 8GB+ RAM (more for larger models)
 
-### Using Docker (Recommended)
+### Installation
 
 ```bash
-# Clone the repository
 git clone https://github.com/the-lono-collective/circuitproofs.git
 cd circuitproofs
 
-# Build and run with Docker
-docker build -t circuitproofs .
-docker run -p 5000:5000 -v $(pwd)/models:/app/models circuitproofs
-
-# Access the web interface
-open http://localhost:5000
-```
-
-### Manual Installation
-
-```bash
-# Clone the repository
-git clone https://github.com/the-lono-collective/circuitproofs.git
-cd circuitproofs
-
-# Install Python dependencies
+# Python dependencies
 pip install -r translator/requirements.txt
 
-# Install Lean 4 (see https://leanprover.github.io/lean4/doc/setup.html)
-# Then build the project
+# Build Lean project
 lake build
-
-# Run the web interface
-python webapp/app.py
 ```
 
-## Usage
-
-### Standard Workflow
-
-#### 1. Export Your Model
-
-```python
-# Export a PyTorch model
-python translator/export_from_pytorch.py \
-    --model_path your_model.pth \
-    --output_path model.json \
-    --model_type transformer
-```
-
-#### 2. Generate Lean Code
-
-```python
-# Convert JSON to Lean definitions
-python translator/generate_lean_model.py \
-    --model_json model.json \
-    --output_lean lean/FormalVerifML/generated/my_model.lean
-```
-
-#### 3. Verify Properties
+### Run End-to-End Demo (Current State)
 
 ```bash
-# Build and verify with Lean
-lake build
-lake exe FormalVerifML
+# This demonstrates the pipeline on a toy model
+# Note: Uses stubs for circuit evaluation
+python examples/end_to_end_pipeline.py
 ```
 
-### 🔬 Certified Circuits Workflow
-
-Extract interpretable circuits with certified error bounds:
-
-```bash
-# Run the complete pipeline
-cd examples
-python end_to_end_pipeline.py
-```
-
-Or step-by-step:
+### Run Circuit Extraction (Partial)
 
 ```python
-# 1. Extract circuit from model
 from extraction.circuit_extractor import extract_transformer_circuit
 
+# Note: _evaluate_circuit() is a stub - error bounds are approximate
 circuit_data = extract_transformer_circuit(
     model=your_model,
     calibration_data=calib_data,
@@ -241,115 +143,144 @@ circuit_data = extract_transformer_circuit(
     output_path="circuit.json",
     pruning_threshold=0.01
 )
-
-# 2. Translate to Lean
-python translator/circuit_to_lean.py \
-    --circuit_json circuit.json \
-    --output_dir lean/FormalVerifML/generated
-
-# 3. Verify in Lean
-lake build
 ```
 
-**Key Benefits**:
-- ✅ **Sparsity**: 70-90% reduction in parameters
-- ✅ **Certified Bounds**: Mathematical guarantee on approximation error
-- ✅ **Interpretability**: Human-understandable computational subgraphs
-- ✅ **Efficient Verification**: Tractable proofs on sparse representations
+---
 
-See [full documentation](docs/CERTIFIED_CIRCUITS.md) for advanced usage.
+## Implementation Status Details
 
-### 4. Web Interface
+### Component A: Circuit Extraction (`extraction/`)
 
-Upload your model JSON files through the web interface at `http://localhost:5000` to:
+| Feature | Status | Notes |
+|---------|--------|-------|
+| `CircuitExtractor` class | ✅ Implemented | |
+| Gradient-based importance | ✅ Implemented | |
+| Activation-based importance | ✅ Implemented | |
+| Edge pruning | ✅ Implemented | |
+| Lipschitz constant estimation | ✅ Implemented | |
+| `_evaluate_circuit()` | ❌ **STUB** | Returns original model output |
+| Error bound computation | ⚠️ Partial | Depends on stub above |
+| JSON export with hash | ✅ Implemented | |
 
-- Visualize model architecture
-- Generate Lean code automatically
-- Run verification proofs
-- View detailed logs and results
+**Critical Issue:** `_evaluate_circuit()` at `extraction/circuit_extractor.py:340` is a stub. It returns the original model's output instead of evaluating the sparse circuit. This means error bounds are not accurate.
 
-## Documentation
+### Component B: Translation (`translator/`)
 
-### User Guides
+| Feature | Status | Notes |
+|---------|--------|-------|
+| `CircuitToLeanTranslator` | ✅ Implemented | |
+| Sparse weight formatting | ✅ Implemented | |
+| Error bound definitions | ✅ Implemented | |
+| CLI interface | ✅ Implemented | |
+| Batch translation | ✅ Implemented | |
 
-- **[User Guide](docs/user_guide.md)**: Getting started and basic usage
-- **[Developer Guide](docs/developer_guide.md)**: Architecture and extension guide
+### Component C: Lean Verification (`lean/FormalVerifML/`)
 
-### API Reference
+| Feature | Status | Notes |
+|---------|--------|-------|
+| Core structures | ✅ Complete | `Circuit`, `CircuitComponent`, `ErrorBound` |
+| Evaluation functions | ✅ Complete | `evalCircuit`, `applySparseLinear` |
+| Property definitions | ✅ Complete | `circuitRobust`, `circuitMonotonic` |
+| `property_transfer` theorem | ❌ **SORRY** | Core value proposition |
+| `lipschitz_composition_bound` | ❌ **SORRY** | Error bound justification |
+| Circuit robustness proof | ❌ **SORRY** | |
+| 13 other theorems | ❌ **SORRY** | See `docs/PROOF_ROADMAP.md` |
 
-- **[Lean API](lean/FormalVerifML/base/)**: Core definitions and properties
-- **[Python API](translator/)**: Model translation and testing tools
-- **[Web API](webapp/)**: Web interface and visualization
+### MBPP-Lean Benchmark (`benchmarks/verina/`)
 
-## Testing
+| Feature | Status | Notes |
+|---------|--------|-------|
+| README documentation | ✅ Complete | |
+| `fetch_dataset.py` | ❌ Not implemented | Scaffold only |
+| `run_benchmark.py` | ❌ Not implemented | Scaffold only |
+| `variant_generator.py` | ❌ Not implemented | For counterfactual testing |
+| `circuit_comparator.py` | ❌ Not implemented | For cross-model comparison |
 
-### Run All Tests
+---
 
-```bash
-# Comprehensive test suite
-python translator/run_comprehensive_tests.py
+## Development Roadmap
 
-# Enterprise feature tests
-python translator/test_enterprise_features.py
+See [ROADMAP.md](ROADMAP.md) for detailed phases and timeline.
 
-# HuggingFace model tests
-python translator/test_huggingface_models.py
+### Phase 1: Critical Path (Weeks 1-2)
+- [ ] Fix `_evaluate_circuit()` stub
+- [ ] Validate Lipschitz bound tightness (< 100x empirical)
+- [ ] Complete `property_transfer` theorem
+- [ ] Complete `lipschitz_composition_bound` theorem
+
+### Phase 2: MBPP Integration (Weeks 3-4)
+- [ ] Implement `fetch_dataset.py`
+- [ ] Implement `run_benchmark.py`
+- [ ] Test on DeepSeek-Coder-1.3B with 10 MBPP problems
+
+### Phase 3: Scale & Generalize (Weeks 5-6)
+- [ ] Run on StarCoder-7B, CodeLlama-34B
+- [ ] Demonstrate cross-model circuit similarity
+- [ ] Scale to CodeLlama-70B
+
+### Phase 4: Submission (Weeks 7-8)
+- [ ] Write results analysis
+- [ ] Prepare Martian challenge submission
+
+---
+
+## Known Risks
+
+| Risk | Severity | Mitigation |
+|------|----------|------------|
+| **Lipschitz bound explosion** | Critical | Tightness gate: ratio < 100x |
+| Proofs harder than expected | High | Start with simplest theorems |
+| Circuits don't recover algorithms | High | Start with simple MBPP problems |
+| 70B extraction OOMs | Medium | Distributed infrastructure |
+
+---
+
+## Repository Structure
+
+```
+circuitproofs/
+├── extraction/                 # Component A: Circuit extraction
+│   ├── circuit_extractor.py   # Main extraction (⚠️ has stub)
+│   └── example_extraction.py  # Demo script
+├── translator/                 # Component B: Translation
+│   ├── circuit_to_lean.py     # Circuit → Lean
+│   └── generate_lean_model.py # Generic model → Lean
+├── lean/FormalVerifML/        # Component C: Verification
+│   ├── base/                  # Core definitions (✅)
+│   │   ├── circuit_models.lean
+│   │   └── definitions.lean
+│   ├── proofs/                # Theorems (❌ many sorry)
+│   │   └── circuit_proofs.lean
+│   └── generated/             # Auto-generated models
+├── benchmarks/verina/         # MBPP-Lean (❌ not implemented)
+├── examples/                  # Demo scripts
+├── docs/                      # Documentation
+└── webapp/                    # Web UI (deprioritized)
 ```
 
-### Test Categories
-
-- ✅ **Model Loading**: PyTorch and HuggingFace model compatibility
-- ✅ **Code Generation**: JSON to Lean translation accuracy
-- ✅ **Verification**: Property verification correctness
-- ✅ **Performance**: Memory usage and execution time
-- ✅ **Enterprise**: Multi-user, security, and audit features
+---
 
 ## Contributing
 
-We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.md) for details.
+We need help with:
 
-### Development Setup
+1. **Lean Expert**: Complete the `sorry` theorems in `proofs/`
+2. **MI Researcher**: Fix `_evaluate_circuit()` and validate bounds
+3. **ML Engineer**: Implement MBPP benchmark runner
+4. **Distributed Systems**: Scale extraction to 70B models
 
-```bash
-# Clone and setup development environment
-git clone https://github.com/the-lono-collective/circuitproofs.git
-cd circuitproofs
+See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
-# Install development dependencies
-pip install -r translator/requirements.txt
-pip install -r requirements-dev.txt
-
-# Setup pre-commit hooks (if available)
-pre-commit install
-
-# Run tests
-python translator/run_comprehensive_tests.py
-```
-
-### Code Standards
-
-- **Python**: Follow PEP 8 with type hints
-- **Lean**: Use Lean 4 style guide and mathlib conventions
-- **Documentation**: Comprehensive docstrings and comments
-- **Testing**: 90%+ test coverage required
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## Acknowledgments
-
-- **Lean Community**: For the excellent theorem prover
-- **HuggingFace**: For transformer model support
-- **PyTorch Team**: For the deep learning framework
-- **Contributors**: All who have helped improve this project
-
+---
 
 ## Attribution
 
-This project extends [FormalVerifML](https://github.com/fraware/formal_verif_ml) with novel **Certified Proof-Carrying Circuits** capabilities.
+- Extended from [FormalVerifML](https://github.com/fraware/formal_verif_ml)
+- MBPP-Lean specifications from [VERINA](https://github.com/sunblaze-ucb/verina)
+- Targeting [Martian Interpretability Challenge](https://withmartian.com/prize)
 
-**Original FormalVerifML**: Created with ❤️ by the FormalVerifML Team
-**Certified Circuits Extension**: Developed by [The Lono Collective](https://github.com/the-lono-collective)
+---
 
-See [CHANGELOG_CIRCUITS.md](CHANGELOG_CIRCUITS.md) for details on the circuit verification additions.
+## License
+
+MIT License - see [LICENSE](LICENSE)

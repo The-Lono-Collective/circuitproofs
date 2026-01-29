@@ -1,5 +1,14 @@
 # LeanVerifier User Guide
 
+> **⚠️ PARTIALLY OUTDATED** — This guide covers the general-purpose verification framework. The project has pivoted to focus on the [Martian Interpretability Challenge](https://withmartian.com/prize). For current priorities, see:
+> - [README.md](../README.md) — Current project status
+> - [ROADMAP.md](../ROADMAP.md) — Development phases
+> - [CERTIFIED_CIRCUITS.md](CERTIFIED_CIRCUITS.md) — Core circuit verification approach
+>
+> Features marked as "deprioritized" (web interface, vision models, enterprise) are not actively developed.
+
+---
+
 > **Complete guide to using LeanVerifier for formal verification of machine learning models**
 
 ## Table of Contents
