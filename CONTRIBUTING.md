@@ -479,8 +479,8 @@ git commit -m "feat(translator): add vision transformer export function"
 git add tests/test_vision_export.py
 git commit -m "test(translator): add tests for vision transformer export"
 
-git add docs/vision_models.md
-git commit -m "docs: add vision transformer documentation"
+git add docs/CERTIFIED_CIRCUITS.md
+git commit -m "docs: update certified circuits documentation"
 ```
 
 ## 🐛 Issue Reporting

@@ -26,19 +26,23 @@ ENV PATH="/root/.local/bin:$PATH"
 
 # 7. Install Python dependencies using uv
 RUN uv pip install --system --no-cache -r translator/requirements.txt
+RUN uv pip install --system --no-cache -r extraction/requirements.txt
 RUN uv pip install --system --no-cache flask graphviz
 
-# 8. Update lake dependencies
+# 8. Set PYTHONPATH so extraction/translator modules are importable
+ENV PYTHONPATH="/app:${PYTHONPATH}"
+
+# 9. Update lake dependencies
 RUN lake update
 
-# 9. Get Mathlib cache (downloads pre-built .olean files)
+# 10. Get Mathlib cache (downloads pre-built .olean files)
 RUN lake exe cache get
 
-# 10. Build with Lake from project root (lakefile.lean is here, with srcDir := "lean")
+# 11. Build with Lake from project root (lakefile.lean is here, with srcDir := "lean")
 RUN lake build
 
-# 11. Expose port 5000 for Flask
+# 12. Expose port 5000 for Flask
 EXPOSE 5000
 
-# 12. Launch your Flask web app
+# 13. Launch your Flask web app
 CMD ["python", "/app/webapp/app.py"]

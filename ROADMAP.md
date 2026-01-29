@@ -1,503 +1,283 @@
-# LeanVerifier Development Roadmap
+# CircuitProofs Development Roadmap
 
-**Last Updated:** 2026-01-16
-**Overall Completion:** 75-80%
-**Test Pass Rate:** 50%
+**Target:** [Martian Interpretability Challenge](https://withmartian.com/prize) ($1M prize pool)
+
+**Last Updated:** 2026-01-20
+
+**Focus:** Formal verification of extracted circuits against ground-truth specifications
 
 ---
 
 ## Executive Summary
 
-LeanVerifier is a formal verification framework for ML models using Lean 4. The project implements **Certified Proof-Carrying Circuits** - extracting sparse computational subgraphs from neural networks and formally verifying their properties.
+We are pivoting from a "General ML Verification Tool" to a **"Mechanistic Interpretability Microscope for Code LLMs"**. The winning angle: prove extracted circuits match formal specifications—not correlation, but mathematical certainty.
 
-### Quick Stats
-| Metric | Current | Target |
-|--------|---------|--------|
-| Python LOC | 4,188 | - |
-| Lean LOC | 4,672 | - |
-| Test Pass Rate | 50% | 85% |
-| Proof Completion | 60% | 95% |
-| Documentation | 95% | 100% |
+### Why This Wins
 
----
-
-## Module Overview
-
-The project consists of **5 independent modules** that can be developed in parallel:
-
-| Module | Status | Can Work Independently | Dependencies |
-|--------|--------|------------------------|--------------|
-| **M1: Extraction** | ✅ Complete | Yes | None |
-| **M2: Translation** | 🟡 85% | Yes | None |
-| **M3: Lean Core** | 🟡 85% | Yes | M2 for generated code |
-| **M4: Proofs** | 🔴 60% | Partially | M3 for definitions |
-| **M5: Web Interface** | ✅ Complete | Yes | M1, M2 |
+Martian criticizes current interpretability for being:
+- **Not mechanistic** (correlation, not causation) → We provide Lean proofs
+- **Not useful** (no real engineering tools) → We provide verification certificates
+- **Incomplete** (narrow wins that don't generalize) → We test across multiple models
+- **Doesn't scale** (enormous human effort) → We automate circuit extraction + verification
 
 ---
 
-## Module 1: Circuit Extraction
+## Current State
 
-**Location:** `extraction/`
-**Status:** ✅ Complete (100%)
-**Maintainer:** Unassigned
+### Overall Progress
 
-### Current State
-All extraction functionality is implemented and working:
+| Metric | Current | Target | Notes |
+|--------|---------|--------|-------|
+| Critical Path Complete | 0% | 100% | Blocked by stubs and sorry |
+| Lean Proofs Complete | 40% | 100% | 16 theorems have `sorry` |
+| MBPP Benchmark | 10% | 100% | Scaffolding only |
+| Test Pass Rate | 50% | 85% | Vision models failing (deprioritized) |
 
-| Component | File | Lines | Status |
-|-----------|------|-------|--------|
-| BlockCert Engine | `circuit_extractor.py` | 477 | ✅ Complete |
-| Demo Script | `example_extraction.py` | 139 | ✅ Complete |
-| Package Init | `__init__.py` | 23 | ✅ Complete |
+### Component Status
 
-### Features Implemented
-- [x] Gradient-based importance scoring
-- [x] Activation-based importance scoring
-- [x] Edge pruning with configurable threshold
-- [x] Lipschitz constant computation
-- [x] Error bound certification
-- [x] SHA-256 certificate generation
-
-### Pending Work
-None - module is complete.
-
-### Success Metrics
-| Metric | Current | Target |
-|--------|---------|--------|
-| Test Coverage | N/A | 90% |
-| Documentation | ✅ | ✅ |
-| Error Handling | ✅ | ✅ |
+| Component | Status | Blocker |
+|-----------|--------|---------|
+| **A: Circuit Extraction** | ⚠️ 70% | `_evaluate_circuit()` is stub |
+| **B: Circuit → Lean** | ✅ 85% | Minor issues |
+| **C: Lean Proofs** | ❌ 40% | 16 `sorry` placeholders |
+| **MBPP Benchmark** | ❌ 10% | Not implemented |
+| **Distributed Infra** | ⚠️ 60% | Needs adaptation for extraction |
 
 ---
 
-## Module 2: Translation Layer
+## Critical Blockers (Must Fix First)
 
-**Location:** `translator/`
-**Status:** 🟡 85% Complete
-**Maintainer:** Unassigned
+### 1. SheafCert Extraction Pipeline (Not Yet Implemented)
 
-### Current State
+**Location:** `extraction/blockcert/` (existing BlockCert modules); new SheafCert pipeline TBD
 
-| Component | File | Lines | Status |
-|-----------|------|-------|--------|
-| PyTorch Exporter | `export_from_pytorch.py` | 342 | ✅ Complete |
-| Lean Generator | `generate_lean_model.py` | 542 | ✅ Complete |
-| Circuit Translator | `circuit_to_lean.py` | 362 | ✅ Complete |
-| Test Orchestration | `run_comprehensive_tests.py` | 348 | ✅ Complete |
-| Enterprise Tests | `test_enterprise_features.py` | 547 | 🟡 70% |
-| HuggingFace Tests | `test_huggingface_models.py` | 355 | 🟡 70% |
+**Current State:** The legacy `circuit_extractor.py` has been archived to the `archive/legacy-blockcert` branch. The replacement SheafCert pipeline (CD-T + DiscoGP) has not been implemented.
 
-### Pending Work
+**Required:** Implement the new extraction pipeline building on the existing BlockCert IR, interpreter, certifier, and certificate modules.
 
-#### P1: Fix Vision Model Integration
-**Priority:** High
-**Effort:** 8-16 hours
-**Blocking:** Enterprise vision features
+**Expert Needed:** MI/PyTorch engineer
 
-**Issue:** Image preprocessing fails during inference. PIL image normalization expects pixel values in [0,1] but receives values outside this range.
+### 2. Lipschitz Bound Tightness
 
-**Files to Modify:**
-- `translator/test_huggingface_models.py`
-- `translator/test_enterprise_features.py`
+**Risk:** Error bounds can explode through layer composition, making proofs vacuous.
 
-**Tasks:**
-- [ ] Debug image preprocessing in HuggingFace transformers integration
-- [ ] Fix PIL image normalization (ensure values in [0,1])
-- [ ] Add image validation before processing
-- [ ] Create test suite for vision model inference
-- [ ] Test all 3 vision models (ViT, Swin, CLIP)
-
-**Affected Models:**
-| Model | Parameters | Status |
-|-------|------------|--------|
-| google/vit-base-patch16-224 | 86M | ❌ Inference fails |
-| microsoft/swin-base-patch4-window7-224 | 87M | ❌ Inference fails |
-| openai/clip-vit-base-patch32 | 151M | ❌ Inference fails |
-
-#### P2: Regenerate Model Stubs
-**Priority:** Low
-**Effort:** 2-4 hours
-
-**Issue:** Two generated Lean files are empty stubs.
-
-**Tasks:**
-- [ ] Run `generate_lean_model.py` on `another_nn.json`
-- [ ] Run `generate_lean_model.py` on `log_reg.json`
-- [ ] Verify generated files compile with `lake build`
-- [ ] Add to test suite
-
-### Success Metrics
-| Metric | Current | Target |
-|--------|---------|--------|
-| HuggingFace Tests Pass | 70% | 100% |
-| Vision Model Inference | 0% | 100% |
-| Generated Files Complete | 75% | 100% |
-| Test Coverage | ~50% | 85% |
-
----
-
-## Module 3: Lean Verification Core
-
-**Location:** `lean/FormalVerifML/base/`
-**Status:** 🟡 85% Complete
-**Maintainer:** Unassigned
-
-### Current State
-
-#### Base Definitions (100% Complete)
-
-| Component | File | Lines | Status |
-|-----------|------|-------|--------|
-| ML Definitions | `definitions.lean` | 481 | ✅ Complete |
-| Circuit Models | `circuit_models.lean` | 272 | ✅ Complete |
-| ML Properties | `ml_properties.lean` | 168 | ✅ Complete |
-| Transformers | `advanced_models.lean` | 323 | ✅ Complete |
-| Vision Models | `vision_models.lean` | 347 | ✅ Complete |
-| Large Scale | `large_scale_models.lean` | 270 | ✅ Complete |
-| Memory Optimized | `memory_optimized_models.lean` | 244 | ✅ Complete |
-| Enterprise | `enterprise_features.lean` | 473 | ✅ Complete |
-| Distributed | `distributed_verification.lean` | 350 | ✅ Complete |
-| SMT Integration | `smt_integration.lean` | 252 | ✅ Complete |
-| Symbolic Models | `symbolic_models.lean` | 32 | 🟡 Stub |
-| Advanced Tactics | `advanced_tactics.lean` | ~50 | ✅ Complete |
-
-#### Generated Models (75% Complete)
-
-| Component | File | Status |
-|-----------|------|--------|
-| Example Model | `example_model.lean` | ✅ Complete |
-| Transformer Model | `sample_transformer_model.lean` | ✅ Complete |
-| Decision Tree | `decision_tree_model.lean` | ✅ Complete |
-| Memory Optimized | `memory_optimized_*.lean` | ✅ Complete |
-| Another NN | `another_nn_model.lean` | ❌ Empty stub |
-| Logistic Regression | `log_reg_model.lean` | ❌ Empty stub |
-
-### Pending Work
-
-#### P1: Fix CI/CD Build
-**Priority:** High
-**Effort:** 4-8 hours
-**Blocking:** Automated testing
-
-**Issue:** Lake dependency resolution fails in CI. Git checkout of mathlib fails with exit code 128.
-
-**Tasks:**
-- [ ] Fix lake dependency resolution for git repositories
-- [ ] Update `.github/workflows/lean_ci.yml` with retry logic
-- [ ] Add proper error handling for transient failures
-- [ ] Document local vs CI build differences
-- [ ] Test in clean environment
-
-#### P2: Implement Symbolic Arithmetic
-**Priority:** Low
-**Effort:** 8-12 hours
-
-**Issue:** `evalSymbolicLayer` in `symbolic_models.lean` is a stub.
-
-**Location:** `lean/FormalVerifML/base/symbolic_models.lean:22`
-```lean
--- TODO: Implement exact matrix multiplication with rationals.
+**Validation Required:**
+```python
+# Before proceeding to Lean proofs
+ratio = theoretical_bound / empirical_max_error
+if ratio > 100:
+    raise Error("Bounds too loose - fix extraction first")
 ```
 
-**Tasks:**
-- [ ] Implement `evalSymbolicLayer` with exact rational matrix multiplication
-- [ ] Add symbolic computation helpers
-- [ ] Create tests for symbolic evaluation
-- [ ] Document rational arithmetic approach
+**Gate:** Ratio must be < 100x before proceeding to Phase 2.
 
-### Success Metrics
-| Metric | Current | Target |
-|--------|---------|--------|
-| Base Modules Complete | 100% | 100% |
-| CI/CD Passing | ❌ | ✅ |
-| Symbolic Arithmetic | 0% | 100% |
-| Generated Files | 75% | 100% |
+### 3. Core Lean Theorems
 
----
+**`property_transfer`** - `lean/FormalVerifML/base/circuit_models.lean:217`
+- Proves properties verified on circuits transfer to original model
+- This is the core value proposition
 
-## Module 4: Formal Proofs
+**`lipschitz_composition_bound`** - `lean/FormalVerifML/base/circuit_models.lean:203`
+- Justifies the error bound computation
 
-**Location:** `lean/FormalVerifML/proofs/`
-**Status:** 🔴 60% Complete
-**Maintainer:** Unassigned
-
-### Current State
-
-| Component | File | Lines | Sorries | Status |
-|-----------|------|-------|---------|--------|
-| Circuit Proofs | `circuit_proofs.lean` | 272 | 12 | 🔴 40% |
-| Robustness Proof | `example_robustness_proof.lean` | ~60 | 1 | 🟡 80% |
-| Fairness Proof | `example_fairness_proof.lean` | ~75 | 1 | 🟡 80% |
-| Extended Robustness | `extended_robustness_proof.lean` | ~35 | 1 | 🟡 80% |
-| Extended Fairness | `extended_fairness_proof.lean` | ~70 | 0 | ✅ Complete |
-| Decision Tree Proof | `decision_tree_proof.lean` | ~35 | 1 | 🟡 80% |
-| Test Suite | `comprehensive_test_suite.lean` | 393 | 0 | ✅ Framework |
-
-**Total Incomplete Proofs:** 16 (using `sorry`)
-
-### Pending Work
-
-#### P1: Circuit Core Proofs
-**Priority:** High
-**Effort:** 24-32 hours
-**Location:** `circuit_proofs.lean`
-
-**Theorems to Complete:**
-
-1. **`circuit_robustness_example`** (line ~40)
-   - Prove Lipschitz composition across circuit components
-   - Show error bound applies to final output
-   - Add auxiliary lemmas for component bounds
-
-2. **`circuit_property_preservation`** (line ~61)
-   - Prove properties transfer through error bounds
-   - Handle perturbation robustness
-   - Add examples for robustness/fairness
-
-3. **`simpleLinearCircuit_sparse`** (line ~29)
-   - Implement sparsity computation lemmas
-   - Prove sparsity levels preserved through evaluation
-
-4. **Monotonicity proofs** (lines ~80+)
-   - Prove monotonicity preservation in circuits
-   - Edge pruning correctness
-
-**Tasks:**
-- [ ] Complete `theorem circuit_robustness_example`
-- [ ] Complete `theorem circuit_property_preservation`
-- [ ] Complete `theorem simpleLinearCircuit_sparse`
-- [ ] Complete monotonicity theorems (4 total)
-- [ ] Add helper lemmas for bounds composition
-- [ ] Remove all 12 `sorry` statements
-
-#### P2: Basic Property Proofs
-**Priority:** Medium
-**Effort:** 12-16 hours
-
-**Theorems to Complete:**
-- [ ] `example_robustness_proof.lean` - 1 sorry
-- [ ] `example_fairness_proof.lean` - 1 sorry
-- [ ] `extended_robustness_proof.lean` - 1 sorry
-- [ ] `decision_tree_proof.lean` - 1 sorry
-
-**Tasks:**
-- [ ] Complete robustness proofs with detailed proof scripts
-- [ ] Complete fairness proofs with detailed proof scripts
-- [ ] Add educational comments explaining proof strategies
-- [ ] Create reusable proof tactics where applicable
-
-#### P3: Test Suite Helpers
-**Priority:** Medium
-**Effort:** 16-20 hours
-**Location:** `comprehensive_test_suite.lean`
-
-**Functions to Implement:**
-- `generateRobustnessProof` - Currently stub
-- `extractCounterexample` - Currently stub
-- `extractProofCertificate` - Currently stub
-
-**Tasks:**
-- [ ] Implement `generateRobustnessProof` helper
-- [ ] Implement `extractCounterexample` helper
-- [ ] Implement `extractProofCertificate` helper
-- [ ] Create test runner in IO monad
-- [ ] Add property-based testing support
-
-### Success Metrics
-| Metric | Current | Target |
-|--------|---------|--------|
-| Circuit Proofs Complete | 40% | 100% |
-| Basic Proofs Complete | 80% | 100% |
-| Test Suite Helpers | 0% | 100% |
-| Total Sorries | 16 | 0 |
-
----
-
-## Module 5: Web Interface
-
-**Location:** `webapp/`
-**Status:** ✅ Complete (100%)
-**Maintainer:** Unassigned
-
-### Current State
-
-| Component | File | Lines | Status |
-|-----------|------|-------|--------|
-| Flask App | `app.py` | 664 | ✅ Complete |
-| Templates | `templates/` | - | ✅ Complete |
-| Static Assets | `static/` | - | ✅ Complete |
-
-### Features Implemented
-- [x] Model upload endpoints
-- [x] Model visualization (Graphviz)
-- [x] Verification endpoints
-- [x] Health checks
-- [x] Error handling
-- [x] API documentation
-
-### Pending Work
-None - module is complete.
-
-### Success Metrics
-| Metric | Current | Target |
-|--------|---------|--------|
-| Endpoint Coverage | 100% | 100% |
-| Documentation | ✅ | ✅ |
-| Error Handling | ✅ | ✅ |
+**Expert Needed:** Lean expert (2 weeks total)
 
 ---
 
 ## Development Phases
 
-### Phase 1: Critical Fixes (Weeks 1-2)
-**Goal:** Unblock development and CI/CD
+### Phase 1: Critical Path (Weeks 1-2)
 
-| Task | Module | Priority | Effort | Owner |
-|------|--------|----------|--------|-------|
-| Fix Lean CI/CD build | M3 | 🔴 High | 4-8h | - |
-| Fix vision model integration | M2 | 🔴 High | 8-16h | - |
-| Regenerate model stubs | M2, M3 | 🟡 Low | 2-4h | - |
+**Goal:** Unblock the core pipeline. Everything else depends on this.
 
-**Exit Criteria:**
-- [ ] CI/CD pipeline passes (6/6 test categories)
-- [ ] All 3 vision models complete inference
-- [ ] All generated Lean files compile
-
-### Phase 2: Proof Implementation (Weeks 3-6)
-**Goal:** Complete all formal proofs
-
-| Task | Module | Priority | Effort | Owner |
-|------|--------|----------|--------|-------|
-| Circuit robustness proofs | M4 | 🔴 High | 24-32h | - |
-| Property preservation proofs | M4 | 🔴 High | 20-28h | - |
-| Sparsity & monotonicity proofs | M4 | 🟡 Medium | 16-20h | - |
-| Basic example proofs | M4 | 🟡 Medium | 12-16h | - |
+| Task | Owner | Effort | Gate |
+|------|-------|--------|------|
+| Implement SheafCert extraction pipeline | MI engineer | TBD | New pipeline produces valid circuits |
+| Run Lipschitz tightness validation | MI engineer | 1-2 days | **Ratio < 100x** |
+| Complete `lipschitz_composition_bound` | Lean expert | 1 week | Compiles without sorry |
+| Complete `property_transfer` theorem | Lean expert | 1 week | Compiles without sorry |
 
 **Exit Criteria:**
-- [ ] Zero `sorry` statements in codebase
-- [ ] All theorems have complete proofs
-- [ ] Proofs compile with `lake build`
+- [ ] SheafCert extraction pipeline produces valid circuit output
+- [ ] Tightness ratio < 100x on DeepSeek-Coder-1.3B test
+- [ ] Core Lean theorems compile without `sorry`
+- [ ] `lake build` passes
 
-### Phase 3: Test Enhancement (Weeks 4-5, Parallel)
-**Goal:** Achieve 85% test coverage
+**Go/No-Go Decision (End of Week 1):**
 
-| Task | Module | Priority | Effort | Owner |
-|------|--------|----------|--------|-------|
-| Implement test suite helpers | M4 | 🟡 Medium | 16-20h | - |
-| Add integration tests | All | 🟡 Medium | 12-16h | - |
-| Add unit tests for extraction | M1 | 🟡 Low | 8-12h | - |
+Run tightness validation on DeepSeek-Coder-1.3B solving 3 MBPP problems.
+
+| Result | Decision |
+|--------|----------|
+| Ratio < 10x | **GO** - proceed to Lean proofs |
+| Ratio 10-100x | **CONDITIONAL** - investigate, may need tighter pruning |
+| Ratio > 100x | **NO-GO** - fundamental issue, reassess approach |
+
+### Phase 2: MBPP Benchmark Integration (Weeks 3-4)
+
+**Goal:** Complete the ground-truth verification pipeline.
+
+| Task | Owner | Effort | Depends On |
+|------|-------|--------|------------|
+| Implement `fetch_dataset.py` | Python eng | 1 day | — |
+| Implement `run_benchmark.py` | Python eng | 2-3 days | fetch_dataset |
+| Implement counterfactual variant testing | Python eng | 2 days | run_benchmark |
+| Implement cross-model circuit comparison | Python eng | 2 days | run_benchmark |
+| Test on DeepSeek-Coder-1.3B | ML eng | 3-4 days | All above |
 
 **Exit Criteria:**
-- [ ] 85% overall test pass rate
-- [ ] Test suite helpers functional
-- [ ] Integration tests cover E2E pipeline
+- [ ] Can fetch and parse MBPP-Lean dataset
+- [ ] Can run extraction + verification on 10 MBPP problems
+- [ ] ≥5/10 circuit proofs complete on DeepSeek-Coder-1.3B
+- [ ] Counterfactual testing works (variable rename → same circuit)
 
-### Phase 4: Polish (Week 6)
-**Goal:** Production readiness
+### Phase 3: Scale & Generalize (Weeks 5-6)
 
-| Task | Module | Priority | Effort | Owner |
-|------|--------|----------|--------|-------|
-| Implement symbolic arithmetic | M3 | 🟡 Low | 8-12h | - |
-| Documentation updates | All | 🟡 Low | 4-8h | - |
-| Performance optimization | All | 🟡 Low | 8-12h | - |
+**Goal:** Demonstrate the approach scales and generalizes.
+
+| Task | Owner | Effort | Depends On |
+|------|-------|--------|------------|
+| Adapt distributed infra for extraction | Infra eng | 3-4 days | — |
+| Run on StarCoder-7B | ML eng | 3-4 days | Phase 2 |
+| Run on CodeLlama-34B | ML eng | 3-4 days | Distributed infra |
+| Run on CodeLlama-70B | ML eng | 1 week | Distributed infra |
+| Cross-model circuit comparison | ML eng | 2-3 days | Multiple model runs |
 
 **Exit Criteria:**
-- [ ] Symbolic arithmetic implemented
-- [ ] All documentation current
-- [ ] No performance regressions
+- [ ] Successful extraction from 4 models (1.3B → 70B)
+- [ ] Cross-model comparison shows similar circuits for same algorithms
+- [ ] No OOM errors on 70B model
+
+### Phase 4: Submission (Weeks 7-8)
+
+**Goal:** Prepare compelling Martian challenge submission.
+
+| Task | Owner | Effort |
+|------|-------|--------|
+| Analyze results, identify patterns | All | 3-4 days |
+| Write technical report | Lead | 3-4 days |
+| Create visualizations | ML eng | 2 days |
+| Prepare code release | All | 2 days |
+| Submit to Martian | Lead | 1 day |
+
+**Deliverables:**
+- Technical report showing verified circuits across multiple models
+- Open-source codebase with reproducible results
+- Lean proof artifacts
 
 ---
 
-## Success Metrics Summary
+## Scope Decisions
 
-### Overall Project Metrics
+### In Scope (Must Complete)
 
-| Metric | Current | Phase 1 | Phase 2 | Phase 3 | Phase 4 |
-|--------|---------|---------|---------|---------|---------|
-| Test Pass Rate | 50% | 70% | 80% | 85% | 90% |
-| Proof Completion | 60% | 60% | 95% | 95% | 100% |
-| CI/CD Status | ❌ Broken | ✅ Fixed | ✅ | ✅ | ✅ |
-| Vision Models | ❌ Broken | ✅ Fixed | ✅ | ✅ | ✅ |
-| Sorries | 16 | 16 | 0 | 0 | 0 |
+| Feature | Priority | Reason |
+|---------|----------|--------|
+| Circuit extraction (Component A) | P0 | Core pipeline |
+| Lean translation (Component B) | P0 | Core pipeline |
+| Core proofs (Component C) | P0 | Value proposition |
+| MBPP-Lean benchmark | P0 | Ground truth |
+| Distributed extraction | P1 | Scale to 70B |
+| Cross-model comparison | P1 | Generalization |
+| Counterfactual testing | P1 | Semantic verification |
 
-### Per-Module Completion
+### Out of Scope (Deprioritized)
 
-| Module | Current | Target | Gap |
-|--------|---------|--------|-----|
-| M1: Extraction | 100% | 100% | 0% |
-| M2: Translation | 85% | 100% | 15% |
-| M3: Lean Core | 85% | 100% | 15% |
-| M4: Proofs | 60% | 100% | 40% |
-| M5: Web Interface | 100% | 100% | 0% |
-| **Overall** | **78%** | **100%** | **22%** |
+| Feature | Previous Status | Decision | Reason |
+|---------|-----------------|----------|--------|
+| Vision models (ViT, CLIP) | 🟡 Partial | ❌ Deprioritize | Not code generation |
+| Enterprise features | ✅ Complete | ❌ Deprioritize | Not needed for challenge |
+| Web interface | ✅ Complete | ❌ Deprioritize | CLI sufficient |
+| Generic HuggingFace | 🟡 Partial | ❌ Deprioritize | Focus on code LLMs |
+| Multi-user auth | ✅ Complete | ❌ Deprioritize | Not needed |
+| Audit logging | ✅ Complete | ❌ Deprioritize | Not needed |
 
-### Quality Metrics
+### Keep But Rebrand
 
-| Metric | Current | Target |
-|--------|---------|--------|
-| Python Type Coverage | 100% | 100% |
-| Lean Type Annotations | 100% | 100% |
-| Docstring Coverage | 95% | 100% |
-| Max Function Length | <50 lines | <50 lines |
-| Max File Length | <500 lines | <500 lines |
-
----
-
-## Dependency Graph
-
-```
-                    ┌─────────────────┐
-                    │   M5: Web UI    │
-                    │   (Complete)    │
-                    └────────┬────────┘
-                             │
-              ┌──────────────┼──────────────┐
-              │              │              │
-              ▼              ▼              ▼
-    ┌─────────────────┐ ┌─────────────────┐ ┌─────────────────┐
-    │  M1: Extraction │ │ M2: Translation │ │   M4: Proofs    │
-    │   (Complete)    │ │     (85%)       │ │     (60%)       │
-    └─────────────────┘ └────────┬────────┘ └────────┬────────┘
-                                 │                   │
-                                 └─────────┬─────────┘
-                                           │
-                                           ▼
-                              ┌─────────────────────┐
-                              │   M3: Lean Core     │
-                              │       (85%)         │
-                              └─────────────────────┘
-```
-
-**Parallel Work Opportunities:**
-- M1, M2, M5 can all be worked on independently
-- M4 (Proofs) can be worked on once M3 definitions are stable
-- CI/CD fixes (M3) can be done in parallel with proof work (M4)
-- Vision model fixes (M2) can be done in parallel with all other work
+| Feature | Previous Purpose | New Purpose |
+|---------|------------------|-------------|
+| Distributed verification | General large models | Extraction from 70B code LLMs |
+| Memory optimization | General efficiency | Handle activation caching |
 
 ---
 
 ## Risk Register
 
-| Risk | Impact | Likelihood | Mitigation |
-|------|--------|------------|------------|
-| Mathlib breaking changes | High | Low | Pin lean-toolchain, test before update |
-| Proof complexity higher than estimated | Medium | Medium | Start with simpler proofs, build up |
-| Vision model API changes | Low | Low | Pin transformers version |
-| CI/CD instability | Medium | Medium | Add retry logic, caching |
+| Risk | Severity | Likelihood | Mitigation | Owner |
+|------|----------|------------|------------|-------|
+| **Lipschitz bound explosion** | Critical | Medium | Tightness gate Week 1 | MI eng |
+| **Proofs harder than expected** | High | Medium | Start with simplest; get Lean help | Lean expert |
+| **Circuits don't recover algorithms** | High | Medium | Start with simplest MBPP | ML eng |
+| **70B extraction OOMs** | Medium | Medium | Distributed infra, checkpointing | Infra eng |
+| **MBPP problems too simple** | Low | Low | Can extend to harder benchmarks | — |
+| **Lean expert unavailable** | High | Unknown | Find backup; document progress | Lead |
 
 ---
 
-## How to Contribute
+## Team Requirements
 
-1. **Pick a module** from the roadmap above
-2. **Check dependencies** - ensure required modules are complete
-3. **Follow TDD** - write tests first (see CLAUDE.md)
-4. **Run full test suite** before submitting PR:
-   ```bash
-   python -m pytest translator/tests/ -v
-   lake build
-   ```
-5. **Update this roadmap** when completing tasks
+| Role | Responsibilities | Availability Needed |
+|------|------------------|---------------------|
+| **Lean Expert** | Complete `sorry` theorems, review proofs | 2-3 weeks |
+| **MI/PyTorch Engineer** | Fix `_evaluate_circuit()`, validate bounds | 2-3 weeks |
+| **ML Engineer** | MBPP runner, model experiments | 4-5 weeks |
+| **Distributed/Infra Engineer** | Adapt infra for 70B extraction | 1-2 weeks |
+| **Project Lead** | Coordination, writing, submission | Throughout |
+
+---
+
+## Success Metrics
+
+### Martian Challenge Alignment
+
+| Martian Criterion | Our Approach | Measurable Target |
+|-------------------|--------------|-------------------|
+| **Mechanistic** | Lean proofs, not correlations | 100% proofs compile |
+| **Useful** | Verification certificates | Usable by downstream tools |
+| **Generalizable** | Cross-model testing | Same circuit structure across 3+ models |
+| **Scalable** | 1.3B → 70B range | Successful runs on all 4 target models |
+| **Ground truth benchmark** | MBPP-Lean specs | ≥50% proofs complete |
+| **Code generation focus** | Only code LLMs | 100% target models are code-focused |
+
+### Technical Milestones
+
+| Milestone | Target Date | Criteria |
+|-----------|-------------|----------|
+| Tightness gate passed | Week 1 | Ratio < 100x |
+| Core Lean proofs done | Week 2 | No `sorry` in P0 theorems |
+| MBPP runner working | Week 4 | 10 problems extractable |
+| Cross-model results | Week 6 | 3+ models compared |
+| Submission ready | Week 8 | Report + code complete |
+
+---
+
+## Files to Modify/Create
+
+### Must Modify
+
+| File | Change | Priority |
+|------|--------|----------|
+| `extraction/blockcert/` | Implement SheafCert pipeline (CD-T + DiscoGP) | P0 |
+| `lean/FormalVerifML/base/circuit_models.lean:203` | Complete `lipschitz_composition_bound` | P0 |
+| `lean/FormalVerifML/base/circuit_models.lean:217` | Complete `property_transfer` | P0 |
+| `lean/FormalVerifML/proofs/circuit_proofs.lean` | Complete all `sorry` | P0 |
+
+### Must Create
+
+| File | Purpose | Priority |
+|------|---------|----------|
+| `benchmarks/verina/fetch_dataset.py` | Download MBPP-Lean | P0 |
+| `benchmarks/verina/run_benchmark.py` | Run extraction + verification | P0 |
+| Counterfactual variant testing | Semantic verification | P1 |
+| Cross-model circuit comparison | Generalization evidence | P1 |
+| `scripts/validate_tightness.py` | Lipschitz bound validation | P0 |
+
+### Can Ignore (Deprioritized)
+
+| File/Directory | Reason |
+|----------------|--------|
+| `webapp/` | Web UI not needed |
+| `archive/legacy-blockcert` branch | Archived: vision_models.lean, enterprise_features.lean, circuit_extractor.py, test files, etc. |
 
 ---
 
@@ -505,4 +285,8 @@ None - module is complete.
 
 | Date | Change |
 |------|--------|
+| 2026-01-20 | Pivoted to Martian challenge focus |
+| 2026-01-20 | Added tightness gate from expert review |
+| 2026-01-20 | Retained distributed infra (rebranded) |
+| 2026-01-20 | Deprioritized vision, enterprise, web UI |
 | 2026-01-16 | Initial roadmap created |
