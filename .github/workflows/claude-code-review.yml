@@ -21,6 +21,7 @@ jobs:
       contents: read
       pull-requests: write
       issues: write
+      id-token: write
     outputs:
       tier: ${{ steps.parse.outputs.tier }}
       triage_summary: ${{ steps.extract.outputs.summary }}
@@ -129,6 +130,7 @@ jobs:
       contents: read
       pull-requests: write
       issues: write
+      id-token: write
     uses: ./.github/workflows/claude-simple.yml
     with:
       pr_number: "${{ github.event.pull_request.number }}"
@@ -143,6 +145,7 @@ jobs:
       contents: read
       pull-requests: write
       issues: write
+      id-token: write
     uses: ./.github/workflows/claude-moderate.yml
     with:
       pr_number: "${{ github.event.pull_request.number }}"
@@ -159,6 +162,7 @@ jobs:
       contents: read
       pull-requests: write
       issues: write
+      id-token: write
     uses: ./.github/workflows/claude-complex.yml
     with:
       pr_number: "${{ github.event.pull_request.number }}"
