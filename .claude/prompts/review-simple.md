@@ -52,7 +52,7 @@ OR if no issues:
 - **Max turns**: 5
 - **Max comments**: 3
 - **Max response length**: ~200 words
-- **Tools allowed**: Read, gh CLI, GitHub MCP
+- **Tools allowed**: Read, GitHub MCP
 
 ## Failsafe Behavior
 
