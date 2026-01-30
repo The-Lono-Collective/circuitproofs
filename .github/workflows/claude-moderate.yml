@@ -112,6 +112,7 @@ jobs:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           claude_args: "--model sonnet --max-turns 10"
           show_full_output: true
+          allowed_tools: "mcp__github__add_issue_comment,mcp__github__create_pull_request_review,Read,Glob,Grep"
           prompt: |
             You are a code review agent for standard PRs (bug fixes, small features).
             Follow the instructions in .claude/prompts/review-moderate.md exactly.

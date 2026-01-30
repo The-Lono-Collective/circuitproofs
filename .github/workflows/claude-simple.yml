@@ -45,6 +45,7 @@ jobs:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           claude_args: "--model haiku --max-turns 5"
           show_full_output: true
+          allowed_tools: "mcp__github__add_issue_comment,Read,Glob,Grep"
           prompt: |
             You are a lightweight code review agent for simple PRs.
             Follow the instructions in .claude/prompts/review-simple.md exactly.
