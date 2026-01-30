@@ -26,6 +26,8 @@ jobs:
       tier: ${{ steps.parse.outputs.tier }}
       triage_summary: ${{ steps.extract.outputs.summary }}
       files_changed: ${{ steps.extract.outputs.files_changed }}
+      additions: ${{ steps.extract.outputs.additions }}
+      deletions: ${{ steps.extract.outputs.deletions }}
       has_lean_files: ${{ steps.extract.outputs.has_lean_files }}
     steps:
       - name: Checkout repository
@@ -39,10 +41,16 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
-          # Get list of changed files
-          files=$(gh pr diff "$PR_NUMBER" --name-only | head -50)
-          files_changed=$(echo "$files" | wc -l | tr -d ' ')
+          # Get PR stats from GitHub API (accurate, not affected by shallow clone)
+          pr_stats=$(gh pr view "$PR_NUMBER" --json additions,deletions,changedFiles,files)
+          additions=$(echo "$pr_stats" | jq -r '.additions')
+          deletions=$(echo "$pr_stats" | jq -r '.deletions')
+          files_changed=$(echo "$pr_stats" | jq -r '.changedFiles')
+          files=$(echo "$pr_stats" | jq -r '.files[].path')
+
           echo "files_changed=$files_changed" >> $GITHUB_OUTPUT
+          echo "additions=$additions" >> $GITHUB_OUTPUT
+          echo "deletions=$deletions" >> $GITHUB_OUTPUT
 
           # Check for Lean files
           if echo "$files" | grep -qE '\.lean$'; then
@@ -55,6 +63,11 @@ jobs:
           file_summary=$(echo "$files" | head -10 | tr '\n' ',' | sed 's/,$//')
           echo "summary=$file_summary" >> $GITHUB_OUTPUT
 
+          # Full file list for Claude
+          echo "files<<EOF" >> $GITHUB_OUTPUT
+          echo "$files" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
       - name: Run Claude Triage
         id: triage
         uses: anthropics/claude-code-action@v1
@@ -64,10 +77,18 @@ jobs:
           prompt: |
             You are the PR triage agent. Follow the instructions in .claude/prompts/triage.md exactly.
 
-            After analysis, you MUST output a line in this exact format:
-            TRIAGE_RESULT: <simple|moderate|complex>
+            IMPORTANT: Use ONLY the PR stats below. Do NOT run git commands - the checkout is shallow and will give wrong results.
 
-            This line will be parsed to apply the correct label.
+            ## PR #${{ github.event.pull_request.number }} Stats (from GitHub API)
+            - Files changed: ${{ steps.extract.outputs.files_changed }}
+            - Lines added: ${{ steps.extract.outputs.additions }}
+            - Lines removed: ${{ steps.extract.outputs.deletions }}
+            - Has Lean files: ${{ steps.extract.outputs.has_lean_files }}
+            - Changed files:
+            ${{ steps.extract.outputs.files }}
+
+            Based on ONLY these stats, output:
+            TRIAGE_RESULT: <simple|moderate|complex>
 
       - name: Parse triage result
         id: parse
