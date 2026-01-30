@@ -72,20 +72,45 @@ jobs:
       - name: Parse triage result
         id: parse
         env:
-          TRIAGE_OUTPUT: ${{ steps.triage.outputs.response }}
+          EXECUTION_FILE: ${{ steps.triage.outputs.execution_file }}
         run: |
+          echo "::group::Debug: Execution file info"
+          echo "EXECUTION_FILE=$EXECUTION_FILE"
+          ls -la "$EXECUTION_FILE" 2>/dev/null || echo "File not found"
+          echo "::endgroup::"
+
+          # Extract assistant messages from execution file and search for TRIAGE_RESULT
+          if [ -f "$EXECUTION_FILE" ]; then
+            # Extract all text content from assistant messages
+            TRIAGE_OUTPUT=$(jq -r '.[] | select(.type == "assistant") | .message.content[]? | select(.type == "text") | .text' "$EXECUTION_FILE" 2>/dev/null || echo "")
+            echo "::group::Debug: Extracted output"
+            echo "$TRIAGE_OUTPUT" | head -50
+            echo "::endgroup::"
+          else
+            echo "::warning::Execution file not found: $EXECUTION_FILE"
+            TRIAGE_OUTPUT=""
+          fi
+
           # Parse the triage output for the result line
           if echo "$TRIAGE_OUTPUT" | grep -qF "TRIAGE_RESULT: simple"; then
             echo "tier=simple" >> $GITHUB_OUTPUT
+            echo "::notice::Tier set to: simple"
           elif echo "$TRIAGE_OUTPUT" | grep -qF "TRIAGE_RESULT: moderate"; then
             echo "tier=moderate" >> $GITHUB_OUTPUT
+            echo "::notice::Tier set to: moderate"
           elif echo "$TRIAGE_OUTPUT" | grep -qF "TRIAGE_RESULT: complex"; then
             echo "tier=complex" >> $GITHUB_OUTPUT
+            echo "::notice::Tier set to: complex"
           else
             # Default to moderate if parsing fails
             echo "tier=moderate" >> $GITHUB_OUTPUT
             echo "::warning::Could not parse triage result, defaulting to moderate"
           fi
+
+          # Verify output was written
+          echo "::group::Debug: GITHUB_OUTPUT contents"
+          cat "$GITHUB_OUTPUT"
+          echo "::endgroup::"
 
       - name: Apply tier label
         uses: actions/github-script@v7
