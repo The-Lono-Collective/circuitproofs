@@ -113,11 +113,13 @@ jobs:
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           claude_args: "--model claude-sonnet-4-20250514 --max-turns 20"
+          show_full_output: true
           prompt: |
             You are a senior code review agent for complex PRs.
             Follow the instructions in .claude/prompts/review-complex.md exactly.
 
             ## Triage Context (passed from triage workflow)
+            - PR Number: ${{ inputs.pr_number }}
             - Files changed: ${{ inputs.files_changed || 'Not provided' }}
             - Has Lean files: ${{ inputs.has_lean_files || 'false' }}
             - Summary: ${{ inputs.triage_summary || 'Not provided' }}
@@ -135,6 +137,9 @@ jobs:
             - Circuit proofs: Sparse representations, Lipschitz error bounds
 
             Provide detailed, actionable feedback with specific file:line references.
+
+            IMPORTANT: After completing your review, you MUST post a comment on PR #${{ inputs.pr_number }}
+            with your comprehensive findings using the GitHub tools available to you.
 
   # Auto-approve job - runs when prescreen passes
   auto-approve:

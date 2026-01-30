@@ -111,11 +111,13 @@ jobs:
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           claude_args: "--model sonnet --max-turns 10"
+          show_full_output: true
           prompt: |
             You are a code review agent for standard PRs (bug fixes, small features).
             Follow the instructions in .claude/prompts/review-moderate.md exactly.
 
             ## Triage Context (passed from triage workflow)
+            - PR Number: ${{ inputs.pr_number }}
             - Files changed: ${{ inputs.files_changed || 'Not provided' }}
             - Has Lean files: ${{ inputs.has_lean_files || 'false' }}
             - Summary: ${{ inputs.triage_summary || 'Not provided' }}
@@ -127,6 +129,9 @@ jobs:
             - Basic security issues
 
             Provide actionable feedback with specific file:line references.
+
+            IMPORTANT: After completing your review, you MUST post a comment on PR #${{ inputs.pr_number }}
+            with your findings using the GitHub tools available to you.
 
   # Auto-approve job - runs when prescreen passes
   auto-approve:

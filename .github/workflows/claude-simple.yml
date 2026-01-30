@@ -36,6 +36,7 @@ jobs:
           fetch-depth: 1
 
       - name: Run Claude Simple Review
+        id: review
         uses: anthropics/claude-code-action@v1
         env:
           TRIAGE_SUMMARY: ${{ inputs.triage_summary }}
@@ -43,11 +44,13 @@ jobs:
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           claude_args: "--model haiku --max-turns 5"
+          show_full_output: true
           prompt: |
             You are a lightweight code review agent for simple PRs.
             Follow the instructions in .claude/prompts/review-simple.md exactly.
 
             ## Triage Context (passed from triage workflow)
+            - PR Number: ${{ inputs.pr_number }}
             - Files changed: ${{ inputs.files_changed || 'Not provided' }}
             - Summary: ${{ inputs.triage_summary || 'Not provided' }}
 
@@ -56,3 +59,9 @@ jobs:
 
             Remember: This is a SIMPLE review. Do not deep-dive into code logic.
             Focus only on: typos, formatting, broken links, obvious errors.
+
+            IMPORTANT: After completing your review, you MUST post a comment on PR #${{ inputs.pr_number }}
+            with your findings using the GitHub tools available to you. The comment should include:
+            - A "## Quick Review" header
+            - Your findings (or "No issues found" if clean)
+            - A recommendation (approve/request changes)
