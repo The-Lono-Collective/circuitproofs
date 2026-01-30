@@ -49,9 +49,8 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          model: haiku
-          claude_args: "--max-turns 2"
-          custom_instructions: |
+          claude_args: "--model haiku --max-turns 2"
+          prompt: |
             You are a quick prescreen agent. Follow .claude/prompts/prescreen.md exactly.
 
             Check for red flags that require full review:
@@ -101,9 +100,8 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          model: claude-sonnet-4-20250514
-          claude_args: "--max-turns 20"
-          custom_instructions: |
+          claude_args: "--model claude-sonnet-4-20250514 --max-turns 20"
+          prompt: |
             You are a senior code review agent for complex PRs.
             Follow the instructions in .claude/prompts/review-complex.md exactly.
 

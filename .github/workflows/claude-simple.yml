@@ -40,9 +40,8 @@ jobs:
           FILES_CHANGED: ${{ inputs.files_changed }}
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          model: haiku
-          claude_args: "--max-turns 5"
-          custom_instructions: |
+          claude_args: "--model haiku --max-turns 5"
+          prompt: |
             You are a lightweight code review agent for simple PRs.
             Follow the instructions in .claude/prompts/review-simple.md exactly.
 

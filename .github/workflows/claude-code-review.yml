@@ -4,6 +4,12 @@ on:
   pull_request:
     types: [opened, synchronize, ready_for_review, reopened]
 
+# Workflow-level permissions inherited by all jobs and called workflows
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
 jobs:
   triage:
     # Skip draft PRs
@@ -52,9 +58,8 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          model: haiku
-          claude_args: "--max-turns 3"
-          custom_instructions: |
+          claude_args: "--model haiku --max-turns 3"
+          prompt: |
             You are the PR triage agent. Follow the instructions in .claude/prompts/triage.md exactly.
 
             After analysis, you MUST output a line in this exact format:
