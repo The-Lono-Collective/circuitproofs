@@ -1,19 +1,33 @@
 name: Claude Code Review (Simple)
 
 on:
+  # Called by triage workflow with data
+  workflow_call:
+    inputs:
+      pr_number:
+        required: true
+        type: string
+      triage_summary:
+        required: false
+        type: string
+      files_changed:
+        required: false
+        type: string
+  # Manual trigger via label (backup)
   pull_request:
     types: [labeled]
 
 jobs:
   review-simple:
-    # Only trigger when claude-simple label is applied
-    if: github.event.label.name == 'claude-simple'
+    # Trigger on workflow_call OR when claude-simple label is applied
+    if: github.event_name == 'workflow_call' || github.event.label.name == 'claude-simple'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
       contents: read
       pull-requests: write
       issues: write
+      id-token: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -22,18 +36,21 @@ jobs:
 
       - name: Run Claude Simple Review
         uses: anthropics/claude-code-action@v1
+        env:
+          TRIAGE_SUMMARY: ${{ inputs.triage_summary }}
+          FILES_CHANGED: ${{ inputs.files_changed }}
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          model: haiku
-          claude_args: "--max-turns 5"
-          custom_instructions: |
+          claude_args: "--model haiku --max-turns 5"
+          prompt: |
             You are a lightweight code review agent for simple PRs.
             Follow the instructions in .claude/prompts/review-simple.md exactly.
 
-            First, find the triage summary by looking for a PR comment containing
-            "CLAUDE_TRIAGE_SUMMARY". Use the gh CLI to list PR comments and find it.
+            ## Triage Context (passed from triage workflow)
+            - Files changed: ${{ inputs.files_changed || 'Not provided' }}
+            - Summary: ${{ inputs.triage_summary || 'Not provided' }}
 
-            Then perform your quick review based on the triage summary and the PR diff.
+            Perform your quick review based on this context and the PR diff.
             Keep your response concise - max 3 bullet points.
 
             Remember: This is a SIMPLE review. Do not deep-dive into code logic.
