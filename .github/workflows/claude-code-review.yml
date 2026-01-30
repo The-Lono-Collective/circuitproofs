@@ -60,7 +60,7 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          claude_args: "--model haiku --max-turns 3"
+          claude_args: "--model haiku --max-turns 5"
           prompt: |
             You are the PR triage agent. Follow the instructions in .claude/prompts/triage.md exactly.
 
