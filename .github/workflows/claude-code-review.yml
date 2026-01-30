@@ -121,7 +121,7 @@ jobs:
     if: needs.triage.outputs.tier == 'simple'
     uses: ./.github/workflows/claude-simple.yml
     with:
-      pr_number: ${{ github.event.pull_request.number }}
+      pr_number: "${{ github.event.pull_request.number }}"
       triage_summary: ${{ needs.triage.outputs.triage_summary }}
       files_changed: ${{ needs.triage.outputs.files_changed }}
     secrets: inherit
@@ -131,7 +131,7 @@ jobs:
     if: needs.triage.outputs.tier == 'moderate'
     uses: ./.github/workflows/claude-moderate.yml
     with:
-      pr_number: ${{ github.event.pull_request.number }}
+      pr_number: "${{ github.event.pull_request.number }}"
       triage_summary: ${{ needs.triage.outputs.triage_summary }}
       files_changed: ${{ needs.triage.outputs.files_changed }}
       has_lean_files: ${{ needs.triage.outputs.has_lean_files == 'true' }}
@@ -143,7 +143,7 @@ jobs:
     if: needs.triage.outputs.tier == 'complex'
     uses: ./.github/workflows/claude-complex.yml
     with:
-      pr_number: ${{ github.event.pull_request.number }}
+      pr_number: "${{ github.event.pull_request.number }}"
       triage_summary: ${{ needs.triage.outputs.triage_summary }}
       files_changed: ${{ needs.triage.outputs.files_changed }}
       has_lean_files: ${{ needs.triage.outputs.has_lean_files == 'true' }}
