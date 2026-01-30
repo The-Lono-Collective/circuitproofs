@@ -22,6 +22,7 @@ jobs:
       contents: read
       pull-requests: write
       issues: write
+      id-token: write
     outputs:
       tier: ${{ steps.parse.outputs.tier }}
       pr_number: ${{ github.event.issue.number || github.event.pull_request.number }}
