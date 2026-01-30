@@ -115,7 +115,6 @@ Review will proceed with <model> model, max <N> turns.
 ## Tool Usage
 
 You have access to:
-- `gh` CLI for PR metadata and diff stats
 - GitHub MCP for PR details
 
 **Do NOT**:
