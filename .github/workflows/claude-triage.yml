@@ -106,11 +106,18 @@ jobs:
         env:
           OVERRIDE: ${{ steps.override.outputs.override }}
           OVERRIDE_TIER: ${{ steps.override.outputs.tier }}
-          TRIAGE_OUTPUT: ${{ steps.triage.outputs.response }}
+          EXECUTION_FILE: ${{ steps.triage.outputs.execution_file }}
         run: |
           if [[ "$OVERRIDE" == "true" ]]; then
             echo "tier=$OVERRIDE_TIER" >> $GITHUB_OUTPUT
           else
+            # Extract assistant messages from execution file
+            if [ -f "$EXECUTION_FILE" ]; then
+              TRIAGE_OUTPUT=$(jq -r '.[] | select(.type == "assistant") | .message.content[]? | select(.type == "text") | .text' "$EXECUTION_FILE" 2>/dev/null || echo "")
+            else
+              TRIAGE_OUTPUT=""
+            fi
+
             # Parse the triage output for the result line
             if echo "$TRIAGE_OUTPUT" | grep -qF "TRIAGE_RESULT: simple"; then
               echo "tier=simple" >> $GITHUB_OUTPUT
