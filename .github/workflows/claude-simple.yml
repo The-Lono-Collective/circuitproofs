@@ -19,8 +19,9 @@ on:
 
 jobs:
   review-simple:
-    # Trigger on workflow_call OR when claude-simple label is applied
-    if: github.event_name == 'workflow_call' || github.event.label.name == 'claude-simple'
+    # Always run when called - caller handles conditions
+    # For manual label trigger, check the label name
+    if: ${{ !github.event.label || github.event.label.name == 'claude-simple' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
