@@ -3,42 +3,149 @@ name: Claude Code Review
 on:
   pull_request:
     types: [opened, synchronize, ready_for_review, reopened]
-    # Optional: Only run on specific file changes
-    # paths:
-    #   - "src/**/*.ts"
-    #   - "src/**/*.tsx"
-    #   - "src/**/*.js"
-    #   - "src/**/*.jsx"
 
 jobs:
-  claude-review:
-    # Optional: Filter by PR author
-    # if: |
-    #   github.event.pull_request.user.login == 'external-contributor' ||
-    #   github.event.pull_request.user.login == 'new-developer' ||
-    #   github.event.pull_request.author_association == 'FIRST_TIME_CONTRIBUTOR'
-
+  triage:
+    # Skip draft PRs
+    if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     permissions:
       contents: read
-      pull-requests: read
-      issues: read
-      id-token: write
-
+      pull-requests: write
+      issues: write
+    outputs:
+      tier: ${{ steps.parse.outputs.tier }}
+      triage_summary: ${{ steps.extract.outputs.summary }}
+      files_changed: ${{ steps.extract.outputs.files_changed }}
+      has_lean_files: ${{ steps.extract.outputs.has_lean_files }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
 
-      - name: Run Claude Code Review
-        id: claude-review
+      - name: Extract PR metadata
+        id: extract
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          # Get list of changed files
+          files=$(gh pr diff "$PR_NUMBER" --name-only | head -50)
+          files_changed=$(echo "$files" | wc -l | tr -d ' ')
+          echo "files_changed=$files_changed" >> $GITHUB_OUTPUT
+
+          # Check for Lean files
+          if echo "$files" | grep -qE '\.lean$'; then
+            echo "has_lean_files=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_lean_files=false" >> $GITHUB_OUTPUT
+          fi
+
+          # Create a compact summary of changed files
+          file_summary=$(echo "$files" | head -10 | tr '\n' ',' | sed 's/,$//')
+          echo "summary=$file_summary" >> $GITHUB_OUTPUT
+
+      - name: Run Claude Triage
+        id: triage
         uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          plugin_marketplaces: 'https://github.com/anthropics/claude-code.git'
-          plugins: 'code-review@claude-code-plugins'
-          prompt: '/code-review:code-review ${{ github.repository }}/pull/${{ github.event.pull_request.number }}'
-          # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
-          # or https://code.claude.com/docs/en/cli-reference for available options
+          model: haiku
+          claude_args: "--max-turns 3"
+          custom_instructions: |
+            You are the PR triage agent. Follow the instructions in .claude/prompts/triage.md exactly.
 
+            After analysis, you MUST output a line in this exact format:
+            TRIAGE_RESULT: <simple|moderate|complex>
+
+            This line will be parsed to apply the correct label.
+
+      - name: Parse triage result
+        id: parse
+        env:
+          TRIAGE_OUTPUT: ${{ steps.triage.outputs.response }}
+        run: |
+          # Parse the triage output for the result line
+          if echo "$TRIAGE_OUTPUT" | grep -qF "TRIAGE_RESULT: simple"; then
+            echo "tier=simple" >> $GITHUB_OUTPUT
+          elif echo "$TRIAGE_OUTPUT" | grep -qF "TRIAGE_RESULT: moderate"; then
+            echo "tier=moderate" >> $GITHUB_OUTPUT
+          elif echo "$TRIAGE_OUTPUT" | grep -qF "TRIAGE_RESULT: complex"; then
+            echo "tier=complex" >> $GITHUB_OUTPUT
+          else
+            # Default to moderate if parsing fails
+            echo "tier=moderate" >> $GITHUB_OUTPUT
+            echo "::warning::Could not parse triage result, defaulting to moderate"
+          fi
+
+      - name: Apply tier label
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const tier = '${{ steps.parse.outputs.tier }}';
+            const prNumber = ${{ github.event.pull_request.number }};
+
+            // Remove any existing claude tier labels
+            const existingLabels = await github.rest.issues.listLabelsOnIssue({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber
+            });
+
+            for (const label of existingLabels.data) {
+              if (label.name.startsWith('claude-')) {
+                await github.rest.issues.removeLabel({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: prNumber,
+                  name: label.name
+                });
+              }
+            }
+
+            // Add the new tier label
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+              labels: [`claude-${tier}`]
+            });
+
+            console.log(`Applied label: claude-${tier}`);
+
+  # Call the appropriate tier workflow based on triage result
+  call-simple:
+    needs: triage
+    if: needs.triage.outputs.tier == 'simple'
+    uses: ./.github/workflows/claude-simple.yml
+    with:
+      pr_number: ${{ github.event.pull_request.number }}
+      triage_summary: ${{ needs.triage.outputs.triage_summary }}
+      files_changed: ${{ needs.triage.outputs.files_changed }}
+    secrets: inherit
+
+  call-moderate:
+    needs: triage
+    if: needs.triage.outputs.tier == 'moderate'
+    uses: ./.github/workflows/claude-moderate.yml
+    with:
+      pr_number: ${{ github.event.pull_request.number }}
+      triage_summary: ${{ needs.triage.outputs.triage_summary }}
+      files_changed: ${{ needs.triage.outputs.files_changed }}
+      has_lean_files: ${{ needs.triage.outputs.has_lean_files == 'true' }}
+      skip_prescreen: false
+    secrets: inherit
+
+  call-complex:
+    needs: triage
+    if: needs.triage.outputs.tier == 'complex'
+    uses: ./.github/workflows/claude-complex.yml
+    with:
+      pr_number: ${{ github.event.pull_request.number }}
+      triage_summary: ${{ needs.triage.outputs.triage_summary }}
+      files_changed: ${{ needs.triage.outputs.files_changed }}
+      has_lean_files: ${{ needs.triage.outputs.has_lean_files == 'true' }}
+      skip_prescreen: false
+    secrets: inherit

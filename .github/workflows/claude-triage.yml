@@ -25,6 +25,10 @@ jobs:
     outputs:
       tier: ${{ steps.parse.outputs.tier }}
       pr_number: ${{ github.event.issue.number || github.event.pull_request.number }}
+      triage_summary: ${{ steps.extract.outputs.summary }}
+      files_changed: ${{ steps.extract.outputs.files_changed }}
+      has_lean_files: ${{ steps.extract.outputs.has_lean_files }}
+      skip_prescreen: ${{ steps.override.outputs.skip_prescreen }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -40,18 +44,46 @@ jobs:
           if echo "$COMMENT_BODY" | grep -qF "@claude --simple"; then
             echo "tier=simple" >> $GITHUB_OUTPUT
             echo "override=true" >> $GITHUB_OUTPUT
+            echo "skip_prescreen=false" >> $GITHUB_OUTPUT
           elif echo "$COMMENT_BODY" | grep -qF "@claude --moderate"; then
             echo "tier=moderate" >> $GITHUB_OUTPUT
             echo "override=true" >> $GITHUB_OUTPUT
+            echo "skip_prescreen=false" >> $GITHUB_OUTPUT
           elif echo "$COMMENT_BODY" | grep -qF "@claude --complex"; then
             echo "tier=complex" >> $GITHUB_OUTPUT
             echo "override=true" >> $GITHUB_OUTPUT
+            echo "skip_prescreen=false" >> $GITHUB_OUTPUT
           elif echo "$COMMENT_BODY" | grep -qF "@claude --full"; then
+            # --full bypasses prescreen and forces complex review
             echo "tier=complex" >> $GITHUB_OUTPUT
             echo "override=true" >> $GITHUB_OUTPUT
+            echo "skip_prescreen=true" >> $GITHUB_OUTPUT
           else
             echo "override=false" >> $GITHUB_OUTPUT
+            echo "skip_prescreen=false" >> $GITHUB_OUTPUT
           fi
+
+      - name: Extract PR metadata
+        id: extract
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.issue.number || github.event.pull_request.number }}
+        run: |
+          # Get list of changed files
+          files=$(gh pr diff "$PR_NUMBER" --name-only | head -50)
+          files_changed=$(echo "$files" | wc -l | tr -d ' ')
+          echo "files_changed=$files_changed" >> $GITHUB_OUTPUT
+
+          # Check for Lean files
+          if echo "$files" | grep -qE '\.lean$'; then
+            echo "has_lean_files=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_lean_files=false" >> $GITHUB_OUTPUT
+          fi
+
+          # Create a compact summary of changed files
+          file_summary=$(echo "$files" | head -10 | tr '\n' ',' | sed 's/,$//')
+          echo "summary=$file_summary" >> $GITHUB_OUTPUT
 
       - name: Run Claude Triage (if no override)
         if: steps.override.outputs.override == 'false'
@@ -127,3 +159,38 @@ jobs:
             });
 
             console.log(`Applied label: claude-${tier}`);
+
+  # Call the appropriate tier workflow based on triage result
+  call-simple:
+    needs: triage
+    if: needs.triage.outputs.tier == 'simple'
+    uses: ./.github/workflows/claude-simple.yml
+    with:
+      pr_number: ${{ needs.triage.outputs.pr_number }}
+      triage_summary: ${{ needs.triage.outputs.triage_summary }}
+      files_changed: ${{ needs.triage.outputs.files_changed }}
+    secrets: inherit
+
+  call-moderate:
+    needs: triage
+    if: needs.triage.outputs.tier == 'moderate'
+    uses: ./.github/workflows/claude-moderate.yml
+    with:
+      pr_number: ${{ needs.triage.outputs.pr_number }}
+      triage_summary: ${{ needs.triage.outputs.triage_summary }}
+      files_changed: ${{ needs.triage.outputs.files_changed }}
+      has_lean_files: ${{ needs.triage.outputs.has_lean_files == 'true' }}
+      skip_prescreen: ${{ needs.triage.outputs.skip_prescreen == 'true' }}
+    secrets: inherit
+
+  call-complex:
+    needs: triage
+    if: needs.triage.outputs.tier == 'complex'
+    uses: ./.github/workflows/claude-complex.yml
+    with:
+      pr_number: ${{ needs.triage.outputs.pr_number }}
+      triage_summary: ${{ needs.triage.outputs.triage_summary }}
+      files_changed: ${{ needs.triage.outputs.files_changed }}
+      has_lean_files: ${{ needs.triage.outputs.has_lean_files == 'true' }}
+      skip_prescreen: ${{ needs.triage.outputs.skip_prescreen == 'true' }}
+    secrets: inherit
