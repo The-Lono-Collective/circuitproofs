@@ -119,6 +119,10 @@ jobs:
   call-simple:
     needs: triage
     if: needs.triage.outputs.tier == 'simple'
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
     uses: ./.github/workflows/claude-simple.yml
     with:
       pr_number: "${{ github.event.pull_request.number }}"
@@ -129,6 +133,10 @@ jobs:
   call-moderate:
     needs: triage
     if: needs.triage.outputs.tier == 'moderate'
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
     uses: ./.github/workflows/claude-moderate.yml
     with:
       pr_number: "${{ github.event.pull_request.number }}"
@@ -141,6 +149,10 @@ jobs:
   call-complex:
     needs: triage
     if: needs.triage.outputs.tier == 'complex'
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
     uses: ./.github/workflows/claude-complex.yml
     with:
       pr_number: "${{ github.event.pull_request.number }}"
