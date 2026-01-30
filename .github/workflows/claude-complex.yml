@@ -112,9 +112,9 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          claude_args: "--model claude-sonnet-4-20250514 --max-turns 20"
+          claude_args: '--model claude-sonnet-4-20250514 --max-turns 20 --allowedTools "Read,Glob,Grep,Bash(gh pr comment:*),Bash(gh pr view:*)"'
           show_full_output: true
-          allowed_tools: "mcp__github__add_issue_comment,mcp__github__create_pull_request_review,Read,Glob,Grep"
+          use_sticky_comment: true
           prompt: |
             You are a senior code review agent for complex PRs.
             Follow the instructions in .claude/prompts/review-complex.md exactly.
