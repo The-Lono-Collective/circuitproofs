@@ -28,9 +28,10 @@ on:
 jobs:
   # Phase 4: Haiku prescreen for quick rejection of clean PRs
   prescreen:
+    # Run prescreen if: called via workflow (no label) and not skipping, OR manual label trigger
     if: |
-      (github.event_name == 'workflow_call' && inputs.skip_prescreen != true) ||
-      (github.event_name == 'pull_request' && github.event.label.name == 'claude-complex')
+      (!github.event.label && inputs.skip_prescreen != true) ||
+      (github.event.label.name == 'claude-complex')
     runs-on: ubuntu-latest
     timeout-minutes: 3
     permissions:
@@ -70,21 +71,30 @@ jobs:
       - name: Parse prescreen result
         id: check
         env:
-          PRESCREEN_OUTPUT: ${{ steps.prescreen.outputs.response }}
+          EXECUTION_FILE: ${{ steps.prescreen.outputs.execution_file }}
         run: |
+          # Extract assistant messages from execution file
+          if [ -f "$EXECUTION_FILE" ]; then
+            PRESCREEN_OUTPUT=$(jq -r '.[] | select(.type == "assistant") | .message.content[]? | select(.type == "text") | .text' "$EXECUTION_FILE" 2>/dev/null || echo "")
+          else
+            PRESCREEN_OUTPUT=""
+          fi
+
           if echo "$PRESCREEN_OUTPUT" | grep -qF "PRESCREEN_RESULT: CLEAN"; then
             echo "needs_review=false" >> $GITHUB_OUTPUT
+            echo "::notice::Prescreen: CLEAN - skipping full review"
           else
             # Default to needing review if unclear
             echo "needs_review=true" >> $GITHUB_OUTPUT
+            echo "::notice::Prescreen: NEEDS_REVIEW"
           fi
 
-  # Main review job - only runs if prescreen detects issues
+  # Main review job - only runs if prescreen detects issues or was skipped
   review-complex:
     needs: prescreen
     if: |
       needs.prescreen.outputs.needs_review == 'true' ||
-      (github.event_name == 'workflow_call' && inputs.skip_prescreen == true)
+      (!github.event.label && inputs.skip_prescreen == true)
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
