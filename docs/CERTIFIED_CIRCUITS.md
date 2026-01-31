@@ -1,266 +1,216 @@
 # Certified Proof-Carrying Circuits
 
-> **Status: Work In Progress** — Core pipeline exists but has critical incomplete components.
+> **Status: Work In Progress** — Pipeline designed but core components not yet implemented.
 
 ## Overview
 
-The **Certified Proof-Carrying Circuits** system bridges mechanistic interpretability and formal verification to provide certified guarantees about neural network behavior. This pipeline extracts simplified "circuits" from trained models, computes certified error bounds, and formally verifies safety and correctness properties.
+The pipeline integrates **CD-T** for rapid filtering, **DiscoGP** for sparse sheaf optimization, **Lean** for logical verification, and **BlockCert** for faithfulness bounding.
 
-### Target: Martian Interpretability Challenge
+**Target:** [Martian Interpretability Challenge](https://withmartian.com/prize)
 
-This approach targets the [Martian Interpretability Challenge](https://withmartian.com/prize) by providing:
+---
 
-- **Mechanistic** proofs (not correlational analysis)
-- **Ground truth** verification against MBPP-Lean specifications
-- **Scalable** extraction from 1.3B to 70B parameter models
-- **Generalizable** results across multiple code LLMs
+## Pipeline Architecture
+
+```
+Phase 1: Task Definition (D, s)
+         ↓
+Phase 2: Hybrid Extraction (CD-T → DiscoGP)
+         ↓
+Phase 3: Lean Verification (translation → convex relaxation → SMT)
+         ↓
+Phase 4: BlockCert Certification (local ε → Lipschitz composition → certificate)
+```
+
+---
+
+## Phase 1: Adversarial Task Definition
+
+We replace static datasets with a formal distribution to prevent overfitting and enable symbolic relaxation.
+
+### The Task Tuple
+
+We define the task $\tau = (\mathcal{D}, s)$.
+
+- **$\mathcal{D}$ (The Prompt Distribution):** A generative grammar of adversarial prompts. For a type prediction task, we use Fill-In-The-Middle (FIM) templates where semantic shortcuts are ablated.
+  - Let $T_{template}$ be a code skeleton. Let $V_{noise}$ be a set of randomized variable names (e.g., `__tmp0`, `var_x`).
+  - The distribution is defined as $x \sim T_{template}(V_{noise})$.
+- **$s$ (The Specification):** A binary scoring function acting on the logits.
+  - $s(M(x)) = 1 \iff \text{Logit}_{\text{target}} - \max_{k \neq \text{target}} \text{Logit}_k > \delta$, where $\delta$ is a confidence margin.
+
+### Datasets for Task Construction
+
+| Dataset | Purpose |
+|---------|---------|
+| ManyTypes4Py | Adversarial FIM tasks (type prediction) |
+| The Stack (TypeScript) | Adversarial FIM tasks (type prediction) |
+| Verina (189 Lean 4 challenges) | Ground truth specifications |
+
+---
+
+## Phase 2: Hybrid Streaming Extraction
+
+We solve the scalability bottleneck by cascading an analytical filter (CD-T) with a gradient-based pruner (DiscoGP).
+
+### Step 2a: Coarse Filtering via Streaming CD-T
+
+**Contextual Decomposition for Transformers (CD-T)** identifies relevant nodes (Heads/MLPs) without training.
+
+**Decomposition:** For every activation $x$, decompose into relevant $\beta$ and irrelevant $\gamma$ such that $x = \beta + \gamma$.
+
+- *Initialization:* $\beta$ is the embedding of the adversarial tokens, $\gamma$ is the mean embedding.
+- *Linear Propagation:* $\beta_{out} = W\beta_{in} + b_{relevant}$
+- *Non-Linear Propagation (ReLU/GeLU):*
+
+$$\beta_{out} = W\beta_{in} + \frac{|W\beta_{in}|}{|W\beta_{in}| + |W\gamma_{in}|} \cdot b$$
+
+**Relevance Score:** Relevance $R(s, T)$ of a source head $s$ to target logits $T$:
+
+$$R(s, T) = \sum_{t \in T} \frac{\|\beta_t\|_{L1}}{\|\gamma_t\|_{L1}}$$
+
+Prune all nodes where $R(s, T) < \tau_{cdt}$.
+
+**Streaming:** Compute $\beta$ and $\gamma$ on the fly during a single forward pass batch, aggregate running mean of $R(s, T)$, discard activations immediately. No activation caching.
+
+### Step 2b: Sheaf Refinement via Streaming DiscoGP
+
+Optimize the weights and edges of the CD-T subgraph to create a **Sheaf**.
+
+**Gumbel-Sigmoid Masks:** Assign learnable parameter $l_i$ to every weight/edge. Relax binary mask $m_i$:
+
+$$s_i = \sigma \left( \frac{l_i - \log(-\log U_1) + \log(-\log U_2)}{\tau} \right)$$
+
+$$m_i = \mathbb{I}_{s_i > 0.5} \text{ (forward)} + s_i \text{ (backward)}$$
+
+**Optimization Objective:** Minimize joint loss $L_{GP}$:
+
+$$L_{GP} = L_{fidelity} + \lambda_c L_{complete} + \lambda_s L_{sparse}$$
+
+- **$L_{fidelity}$:** KL divergence between Sheaf and Full Model on $\mathcal{D}$.
+- **$L_{sparse}$:** Sum of sigmoids to force sparsity:
+
+$$L_{sparse} = \frac{1}{|m_\theta|} \sum \sigma(l_i) + \frac{1}{|m_E|} \sum \sigma(l_i)$$
+
+**Result:** Sheaf $\hat{B}$ with <5% active parameters, dense $W$ replaced by sparse $W \odot m$.
+
+### Calibration Baselines
+
+Validate CD-T + DiscoGP against known circuits before applying to novel tasks:
+
+| Baseline | Source | Purpose |
+|----------|--------|---------|
+| IOI (Indirect Object Identification) | TransformerLens | Known circuit structure |
+| Greater-Than | TransformerLens | Known circuit structure |
+| Tracr | DeepMind | Compiled circuits with ground truth |
+
+---
+
+## Phase 3: Lean Verification (Convex Relaxation & SMT)
+
+Mathematically prove the logic of the Sheaf by checking the convex hull of the input space.
+
+### Step 3a: Translation to Lean
+
+- Use **Leanverifier** to transpile the sparse computational graph into Lean 4 definitions.
+- **Compact Proof Strategy:** Decompose the Sheaf into QK circuit, OV circuit, and Direct Path. Approximate dense interactions via SVD low-rank approximations:
+
+$$\text{QK}_{\text{approx}} = U \Sigma V^T + E_{error}$$
+
+### Step 3b: Convex Relaxation
+
+Define a **Convex Relaxation** $\mathcal{X}_{relaxed}$ of the input distribution $\mathcal{D}$.
+
+- Instead of discrete tokens, define a continuous polytope in the embedding space containing all valid embeddings.
+- **Theorem to Prove:** $\forall x \in \mathcal{X}_{relaxed}, \text{Sheaf}(x)_{\text{target}} > \text{Sheaf}(x)_{\text{other}}$
+
+### Step 3c: SMT Solving (Pessimal Ablation)
+
+The SMT solver verifies the theorem by pessimizing error terms.
+
+- **Mean+Diff Trick:** Bound output logit difference $\Delta \ell$ by separating mean from variation:
+
+$$\min \Delta \ell \geq \min (\text{Mean}) + \min (\text{Diff})$$
+
+- **Max Row-Diff:** Bound matrix multiplication error:
+
+$$\max_{i,j} ((AB)_{r,i} - (AB)_{r,j}) \leq \max_r \sum_k |A_{r,k}| \max_{i,j} (B_{k,i} - B_{k,j})$$
+
+- **Outcome:** If solver returns `UNSAT` (no counter-example), the logic is verified.
+
+---
+
+## Phase 4: BlockCert Certification (Bounded Faithfulness)
+
+Bound the "Dark Matter" (parts pruned in Phase 2) using **BlockCert**.
+
+### Step 4a: Local Error Bounding ($\varepsilon$)
+
+Calculate empirical error between Sheaf ($\hat{B}$) and Full Model ($B$) on $\mathcal{D}$:
+
+$$\varepsilon_\ell = \max_{(p,t) \in \mathcal{D}} \| \hat{B}_\ell(x_{p,t}) - B_\ell(x_{p,t}) \|_2$$
+
+Because DiscoGP minimizes $L_{fidelity}$, this $\varepsilon$ is minimized during extraction.
+
+### Step 4b: Global Composition (Lipschitz)
+
+Let $L_i$ be the Lipschitz constant of layer $i$. The global error bound:
+
+$$\| \text{Sheaf}(x) - \text{Model}(x) \| \leq \sum_{i=0}^{L-1} \left( \varepsilon_i \prod_{j=i+1}^{L-1} L_j \right)$$
+
+**Critical Risk:** Bounds can compound and become vacuous. Validation: `theoretical_bound / empirical_max_error` must be < 100x.
+
+### Step 4c: The Certificate
+
+Final artifact is a JSON file containing:
+
+1. **Hashes:** SHA-256 of Sheaf weights and masks
+2. **Logic Proof:** Lean 4 proof object from Phase 3 (outcome: `verified`)
+3. **Faithfulness Bound:** Global error $\varepsilon_{global}$
+4. **Guarantee:**
+
+$$\text{Logit}_{\text{diff}}(\text{Sheaf}) > \varepsilon_{global} \implies \text{Logit}_{\text{diff}}(\text{Model}) > 0$$
+
+If the circuit's margin of safety exceeds the maximum possible pruning error, the Model is guaranteed correct.
 
 ---
 
 ## Implementation Status
 
-### Component Overview
-
-| Component | Status | Blocker | Location |
-|-----------|--------|---------|----------|
-| **A: Circuit Extraction** | ⚠️ 70% | `_evaluate_circuit()` stub | `extraction/` |
-| **B: Translation Layer** | ✅ 85% | Minor issues | `translator/circuit_to_lean.py` |
-| **C: Lean Verification** | ❌ 40% | 16 `sorry` placeholders | `lean/FormalVerifML/` |
-
-### Component A: BlockCert Extraction
-
-**Location:** `extraction/blockcert/`
-
-| Module | Status | Notes |
-|---------|--------|-------|
-| `ir.py` (BlockIR, TraceRecord, TraceDataset) | ✅ Implemented | Intermediate representation and trace data |
-| `interpreter.py` (BlockInterpreter) | ✅ Implemented | Block evaluation |
-| `certifier.py` (BlockCertifier) | ✅ Implemented | Certification with Lipschitz bounds |
-| `certificate.py` (Certificate) | ✅ Implemented | Certificate generation |
-| SheafCert Pipeline (CD-T + DiscoGP) | ❌ **Not implemented** | Planned replacement for archived `circuit_extractor.py` |
-
-**Note:** The legacy `circuit_extractor.py` has been archived to the `archive/legacy-blockcert` branch. The SheafCert extraction pipeline is planned but not yet implemented.
-
-### Component B: Translation Layer
-
-**Location:** `translator/circuit_to_lean.py`
-
-| Feature | Status | Notes |
-|---------|--------|-------|
-| `CircuitToLeanTranslator` class | ✅ Implemented | |
-| Sparse weight formatting | ✅ Implemented | Edge-list representation |
-| Error bound definitions | ✅ Implemented | |
-| CLI interface | ✅ Implemented | |
-| Batch translation | ✅ Implemented | |
-
-**Output Example:**
-```lean
--- Sparse representation (tractable)
-def component_0_edges : List CircuitEdge := [
-  ⟨0, 0, 0.5⟩,  -- source=0, target=0, weight=0.5
-  ⟨3, 0, 0.3⟩,  -- source=3, target=0, weight=0.3
-  ⟨2, 1, 0.2⟩   -- source=2, target=1, weight=0.2
-]
-```
-
-### Component C: Lean 4 Verification
-
-**Location:** `lean/FormalVerifML/`
-
-#### Definitions (Complete)
-
-| Structure | Status | Location |
-|-----------|--------|----------|
-| `Circuit` | ✅ Complete | `base/circuit_models.lean` |
-| `CircuitComponent` | ✅ Complete | `base/circuit_models.lean` |
-| `CircuitEdge` | ✅ Complete | `base/circuit_models.lean` |
-| `ErrorBound` | ✅ Complete | `base/circuit_models.lean` |
-| `evalCircuit` | ✅ Complete | `base/circuit_models.lean` |
-| `applySparseLinear` | ✅ Complete | `base/circuit_models.lean` |
-| `circuitRobust` | ✅ Complete | `base/circuit_models.lean` |
-| `circuitMonotonic` | ✅ Complete | `base/circuit_models.lean` |
-
-#### Theorems (Incomplete)
-
-| Theorem | Priority | Status | Location |
-|---------|----------|--------|----------|
-| `property_transfer` | **P0** | ❌ `sorry` | `base/circuit_models.lean:217` |
-| `lipschitz_composition_bound` | **P0** | ❌ `sorry` | `base/circuit_models.lean:203` |
-| `circuit_robustness_example` | P1 | ❌ `sorry` | `proofs/circuit_proofs.lean:48` |
-| `circuit_monotonic_example` | P1 | ❌ `sorry` | `proofs/circuit_proofs.lean:91` |
-| `complete_circuit_verification` | P1 | ❌ `sorry` | `proofs/circuit_proofs.lean:248` |
-| 11 other theorems | P2-P3 | ❌ `sorry` | Various |
-
-**Total: 16 theorems with `sorry` placeholders**
-
-See [PROOF_ROADMAP.md](PROOF_ROADMAP.md) for complete list and priorities.
+| Phase | Component | Status | Location |
+|-------|-----------|--------|----------|
+| 1 | Task Definition | ❌ Not implemented | TBD |
+| 2a | CD-T streaming | ❌ Not implemented | `extraction/` (planned) |
+| 2b | DiscoGP optimization | ❌ Not implemented | `extraction/` (planned) |
+| 3a | Lean translation | ⚠️ 85% | `translator/circuit_to_lean.py` |
+| 3b | Convex relaxation | ❌ Not implemented | TBD |
+| 3c | SMT solving | ❌ Not implemented | TBD |
+| 4 | BlockCert certification | ⚠️ Partial | `extraction/blockcert/` |
+| — | Lean proofs | ❌ 40% (16 sorry) | `lean/FormalVerifML/` |
 
 ---
 
-## Architecture
+## Required Software
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    CERTIFIED CIRCUITS PIPELINE               │
-│                     (Work in Progress)                       │
-└─────────────────────────────────────────────────────────────┘
-
-┌─────────────────┐      ┌─────────────────┐      ┌─────────────────┐
-│  Component A    │      │  Component B    │      │  Component C    │
-│                 │      │                 │      │                 │
-│  BlockCert      │ ───> │  Translation    │ ───> │  Lean 4         │
-│  Extraction     │      │  Layer          │      │  Verification   │
-│                 │      │                 │      │                 │
-│  ⚠️ 70%         │      │  ✅ 85%         │      │  ❌ 40%         │
-│  (stub blocks)  │      │  (working)      │      │  (sorry blocks) │
-└─────────────────┘      └─────────────────┘      └─────────────────┘
-        │                         │                         │
-        v                         v                         v
-  circuit.json            circuit.lean              proofs.lean
-  + certificate           + definitions             + theorems
-  (⚠️ inaccurate)         (✅ valid)                (❌ incomplete)
-```
-
----
-
-## Key Algorithm: Lipschitz Composition
-
-**Purpose:** Compute certified error bounds for circuit approximation.
-
-**Theory:**
-- Let `B_i` be the original block and `B̂_i` be the surrogate circuit
-- Let `ε_i` be the local error: `‖B̂_i(x) - B_i(x)‖ ≤ ε_i`
-- Let `L_i` be the Lipschitz constant of block `i`
-- Global error bound: `‖F̂(x) - F(x)‖ ≤ Σ_i (ε_i ∏_{j>i} L_j)`
-
-**Implementation Status:**
-- Python computation: ⚠️ Implemented but uses stub for circuit evaluation
-- Lean theorem: ❌ `lipschitz_composition_bound` has `sorry`
-
-**Critical Risk: Bound Explosion**
-
-Error bounds can compound across layers and become vacuous (useless).
-
-**Validation Required:**
-```python
-ratio = theoretical_bound / empirical_max_error
-if ratio > 100:
-    # Bounds are too loose - proofs will be vacuous
-    raise Error("Lipschitz bounds exploded")
-```
-
----
-
-## Usage (Current State)
-
-### Step-by-Step
-
-#### Step 1: Extract Circuit
-
-```python
-from extraction.blockcert import BlockCertifier, BlockIR, BlockInterpreter, Certificate
-
-# BlockCert modules provide IR, interpretation, certification, and certificate generation.
-# The SheafCert extraction pipeline (CD-T + DiscoGP) is planned but not yet implemented.
-# See extraction/blockcert/ for available modules.
-```
-
-#### Step 2: Translate to Lean
-
-```bash
-python translator/circuit_to_lean.py \
-    --circuit_json circuit.json \
-    --output_dir lean/FormalVerifML/generated
-```
-
-#### Step 3: Attempt Verification
-
-```bash
-# Will compile but proofs are incomplete (sorry)
-lake build
-```
-
----
-
-## What Works Today
-
-1. ✅ BlockCert IR, interpreter, certifier, and certificate modules implemented
-2. ✅ Sparse edge representation is generated correctly
-3. ✅ Lean code is syntactically valid and type-checks
-4. ✅ Lean definitions (structures, functions) are complete
-5. ✅ JSON export includes certificate hash
-
-## What Does NOT Work Today
-
-1. ❌ SheafCert extraction pipeline not yet implemented (legacy `circuit_extractor.py` archived)
-2. ❌ Core theorems have `sorry` - no actual proofs
-3. ❌ MBPP-Lean benchmark integration not implemented
-4. ❌ Cross-model comparison not implemented
-
----
-
-## Required Work
-
-### Critical Path (Must Complete First)
-
-| Task | Expert Needed | Effort |
-|------|---------------|--------|
-| Implement SheafCert pipeline | MI/PyTorch engineer | TBD |
-| Validate Lipschitz tightness | MI engineer | 1-2 days |
-| Complete `lipschitz_composition_bound` | Lean expert | 1 week |
-| Complete `property_transfer` | Lean expert | 1 week |
-
-### MBPP Integration (Phase 2)
-
-| Task | Expert Needed | Effort |
-|------|---------------|--------|
-| Implement `fetch_dataset.py` | Python engineer | 1 day |
-| Implement `run_benchmark.py` | Python engineer | 2-3 days |
-| Test on code LLMs | ML engineer | 1 week |
-
----
-
-## Theoretical Foundation
-
-Based on:
-1. **BlockCert** - Certified interpretability via Lipschitz composition
-2. **Mechanistic Interpretability** - Transformer circuits research (Anthropic)
-3. **Formal Verification** - Lean 4 theorem prover
-
-### Key Insight: Property Transfer
-
-If we can prove:
-1. Property P holds on sparse circuit F̂
-2. Circuit approximates model: `‖F̂(x) - F(x)‖ < ε`
-3. Property P is Lipschitz with constant L_P
-
-Then: Model F satisfies P within `L_P * ε`.
-
-**This is the core theorem (`property_transfer`) that currently has `sorry`.**
+| Repository | Role |
+|-----------|------|
+| [princeton-nlp/Edge-Pruning](https://github.com/princeton-nlp/Edge-Pruning) | DiscoGP basis (gradient-based circuit pruning) |
+| [TransformerLens](https://github.com/TransformerLensOrg/TransformerLens) | Hook-based CD-T implementation, IOI/Greater-Than baselines |
+| [fraware/leanverifier](https://github.com/fraware/leanverifier) | PyTorch → Lean translation |
+| [S3L-official/QEBVerif](https://github.com/S3L-official/QEBVerif) | MILP encoding reference for convex relaxation |
+| [neuronpedia](https://www.neuronpedia.org/) | Feature visualization reference |
 
 ---
 
 ## References
 
 1. **BlockCert**: Certified Approach to Mechanistic Interpretability
-2. **Lean 4**: [The Lean Theorem Prover](https://leanprover.github.io/)
-3. **Transformer Circuits**: [A Mathematical Framework for Transformer Circuits](https://transformer-circuits.pub/)
-4. **VERINA**: [MBPP-Lean Benchmark](https://github.com/sunblaze-ucb/verina)
-5. **Martian Challenge**: [Interpretability Prize](https://withmartian.com/prize)
-
----
-
-## Contributing
-
-We need:
-- **Lean experts** to complete the `sorry` theorems
-- **MI researchers** to fix circuit evaluation and validate bounds
-- **ML engineers** to run experiments on code LLMs
-
-See [CONTRIBUTING.md](../CONTRIBUTING.md) for guidelines.
+2. **CD-T**: Contextual Decomposition for Transformers
+3. **DiscoGP**: Discovering General-Purpose Circuits (Edge-Pruning)
+4. **Lean 4**: [The Lean Theorem Prover](https://leanprover.github.io/)
+5. **Transformer Circuits**: [A Mathematical Framework for Transformer Circuits](https://transformer-circuits.pub/)
+6. **VERINA**: [MBPP-Lean Benchmark](https://github.com/sunblaze-ucb/verina)
+7. **Martian Challenge**: [Interpretability Prize](https://withmartian.com/prize)
 
 ---
 
 **Last Updated**: January 2026
-**Status**: Work in Progress
-**Target**: Martian Interpretability Challenge
