@@ -1,0 +1,184 @@
+name: Claude Code Review (Moderate)
+
+on:
+  # Called by triage workflow with data
+  workflow_call:
+    inputs:
+      pr_number:
+        required: true
+        type: string
+      triage_summary:
+        required: false
+        type: string
+      files_changed:
+        required: false
+        type: string
+      has_lean_files:
+        required: false
+        type: boolean
+        default: false
+      skip_prescreen:
+        required: false
+        type: boolean
+        default: false
+  # Manual trigger via label (backup)
+  pull_request:
+    types: [labeled]
+
+jobs:
+  # Phase 4: Haiku prescreen for quick rejection of clean PRs
+  prescreen:
+    # Two trigger paths determine when prescreen runs:
+    # 1. workflow_call from triage (no label event): Run prescreen unless skip_prescreen=true
+    # 2. Manual label trigger (claude-moderate label): Always run prescreen
+    # The condition checks:
+    # - (!github.event.label && inputs.skip_prescreen != true): Called by triage, not skipping
+    # - (github.event.label.name == 'claude-moderate'): Manual label trigger
+    if: |
+      (!github.event.label && inputs.skip_prescreen != true) ||
+      (github.event.label.name == 'claude-moderate')
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    permissions:
+      contents: read
+      pull-requests: read
+      id-token: write
+    outputs:
+      needs_review: ${{ steps.check.outputs.needs_review }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Run Haiku Prescreen
+        id: prescreen
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_args: "--model haiku --max-turns 6"
+          prompt: |
+            Quick prescreen: scan PR for red flags requiring full review.
+
+            Red flags: security patterns, Lean `sorry`, missing Python type hints, >300 lines, obvious bugs.
+
+            After checking, output EXACTLY one line:
+            PRESCREEN_RESULT: CLEAN
+            or
+            PRESCREEN_RESULT: NEEDS_REVIEW
+
+      - name: Parse prescreen result
+        id: check
+        env:
+          EXECUTION_FILE: ${{ steps.prescreen.outputs.execution_file }}
+        run: |
+          # Validate execution file exists and is valid JSON
+          if [ ! -f "$EXECUTION_FILE" ]; then
+            echo "::error::Execution file not found: $EXECUTION_FILE"
+            echo "needs_review=true" >> $GITHUB_OUTPUT
+            echo "::warning::Defaulting to needs_review=true due to missing execution file"
+            exit 0
+          fi
+
+          if ! jq empty "$EXECUTION_FILE" 2>/dev/null; then
+            echo "::error::Invalid JSON in execution file"
+            echo "::group::Debug: First 100 lines of execution file"
+            head -100 "$EXECUTION_FILE"
+            echo "::endgroup::"
+            echo "needs_review=true" >> $GITHUB_OUTPUT
+            echo "::warning::Defaulting to needs_review=true due to invalid JSON"
+            exit 0
+          fi
+
+          # Extract assistant messages from execution file (errors now visible)
+          PRESCREEN_OUTPUT=$(jq -r '.[] | select(.type == "assistant") | .message.content[]? | select(.type == "text") | .text' "$EXECUTION_FILE")
+
+          if echo "$PRESCREEN_OUTPUT" | grep -qF "PRESCREEN_RESULT: CLEAN"; then
+            echo "needs_review=false" >> $GITHUB_OUTPUT
+            echo "::notice::Prescreen: CLEAN - skipping full review"
+          else
+            # Default to needing review if unclear
+            echo "needs_review=true" >> $GITHUB_OUTPUT
+            echo "::notice::Prescreen: NEEDS_REVIEW"
+          fi
+
+  # Main review job - only runs if prescreen detects issues or was skipped
+  review-moderate:
+    needs: prescreen
+    # Run full review when:
+    # 1. Prescreen flagged issues (needs_review=true)
+    # 2. Called via workflow_call with skip_prescreen=true (e.g., @claude --full)
+    if: |
+      needs.prescreen.outputs.needs_review == 'true' ||
+      (!github.event.label && inputs.skip_prescreen == true)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+      id-token: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Run Claude Moderate Review
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_args: '--model sonnet --max-turns 10 --allowedTools "Read,Glob,Grep,Bash(gh pr comment:*),Bash(gh pr view:*)"'
+          show_full_output: true
+          use_sticky_comment: true
+          prompt: |
+            You are a code review agent for standard PRs (bug fixes, small features).
+            Follow the instructions in .claude/prompts/review-moderate.md exactly.
+
+            ## Triage Context (passed from triage workflow)
+            - PR Number: ${{ inputs.pr_number }}
+            - Files changed: ${{ inputs.files_changed || 'Not provided' }}
+            - Has Lean files: ${{ inputs.has_lean_files || 'false' }}
+            - Summary: ${{ inputs.triage_summary || 'Not provided' }}
+
+            Focus your review on:
+            - Files flagged as Medium/High risk
+            - Code quality and logic errors
+            - Test coverage for new code
+            - Basic security issues
+
+            Provide actionable feedback with specific file:line references.
+
+            IMPORTANT: After completing your review, you MUST post a comment on PR #${{ inputs.pr_number }}
+            with your findings using the GitHub tools available to you.
+
+  # Auto-approve job - runs when prescreen passes
+  auto-approve:
+    needs: prescreen
+    if: needs.prescreen.outputs.needs_review == 'false'
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Post prescreen passed comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prNumber = ${{ inputs.pr_number || github.event.pull_request.number }};
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+              body: `## Quick Review ✅
+
+            **Prescreen passed** - No issues detected by automated review.
+
+            This PR appears clean based on:
+            - No security-sensitive patterns
+            - No Lean \`sorry\` statements
+            - Type hints present on new functions
+            - No obvious bugs detected
+
+            _Use \`@claude --full\` to request a comprehensive review if needed._`
+            });
