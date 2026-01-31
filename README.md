@@ -10,80 +10,60 @@ This project targets the [Martian Interpretability Challenge](https://withmartia
 
 ---
 
-## Project Status: Work In Progress
-
-| Component | Status | Description |
-|-----------|--------|-------------|
-| **Circuit Extraction** | ⚠️ Redesigning | BlockCert modules exist; SheafCert pipeline TBD |
-| **Circuit → Lean Translation** | ✅ 85% | Generates valid Lean code |
-| **Lean Core Definitions** | ✅ 100% | All structures defined |
-| **Lean Proofs** | ❌ 40% | 16 theorems have `sorry` placeholders |
-| **MBPP-Lean Benchmark** | ❌ 10% | Scaffolding only, not implemented |
-| **Distributed Extraction** | ⚠️ 60% | Infrastructure exists, not tested at scale |
-
-**Critical Blockers:**
-- SheafCert extraction pipeline not yet implemented (legacy `circuit_extractor.py` archived)
-- `property_transfer` theorem incomplete (core value proposition)
-- `lipschitz_composition_bound` theorem incomplete
-- MBPP benchmark runner not implemented
-
----
-
 ## The Approach
-
-### Why This Wins
 
 Most interpretability work says: *"This circuit **seems** to compute X based on our analysis."*
 
 We say: *"This circuit is **proven** to compute X. Here's the Lean proof."*
 
+### Key Innovation: CD-T + DiscoGP + Convex Relaxation + BlockCert
+
+We cascade four techniques into a single pipeline:
+
+1. **CD-T** (Contextual Decomposition for Transformers) — analytical filter that identifies relevant heads/MLPs without training
+2. **DiscoGP** (Discovering General-Purpose circuits) — gradient-based pruner that optimizes a sparse sheaf via Gumbel-Sigmoid masks
+3. **Convex Relaxation + SMT** — formally verify the sheaf's logic over the convex hull of the input space
+4. **BlockCert** — bound the faithfulness gap between sheaf and full model via Lipschitz composition
+
 ### Architecture
 
 ```
-Code LLM solves MBPP problem (e.g., "sort a list")
+Phase 1: Adversarial Task Definition (D, s)
+  FIM templates + binary scoring → task τ = (D, s)
          ↓
-Extract sparse circuit from model (Component A)
+Phase 2: Hybrid Extraction (CD-T → DiscoGP)
+  β/γ decomposition → relevance pruning → Gumbel-Sigmoid mask optimization → Sheaf
          ↓
-Translate circuit to Lean 4 (Component B)
+Phase 3: Lean Verification
+  Leanverifier translation → convex relaxation → SMT solving
          ↓
-Prove circuit matches MBPP Lean specification (Component C)
-         ↓
-Certificate: "Circuit implements sorting algorithm within ε error"
+Phase 4: BlockCert Certification
+  Local ε → Lipschitz composition → certificate JSON
+  Guarantee: Logit_diff(Sheaf) > ε_global ⟹ Logit_diff(Model) > 0
 ```
-
-### Key Innovation: Ground Truth Verification
-
-The [MBPP-Lean benchmark](benchmarks/verina/) provides 49 programming problems with **pre-written Lean specifications**. These are the ground truth. We:
-
-1. Have a code LLM solve the problem
-2. Extract the circuit it uses
-3. **Prove** the circuit matches the specification
-
-This is mechanistic (causal), not correlational (pattern-matching).
 
 ---
 
-## Project Scope
+## Project Status
 
-### In Scope (Martian Challenge Focus)
+| Phase | Component | Status | Location |
+|-------|-----------|--------|----------|
+| 1 | Task Definition | ❌ Not implemented | TBD |
+| 2a | CD-T streaming | ❌ Not implemented | `extraction/` (planned) |
+| 2b | DiscoGP optimization | ❌ Not implemented | `extraction/` (planned) |
+| 3a | Lean translation | ⚠️ 85% | `translator/circuit_to_lean.py` |
+| 3b | Convex relaxation | ❌ Not implemented | TBD |
+| 3c | SMT solving | ❌ Not implemented | TBD |
+| 4 | BlockCert certification | ⚠️ Partial | `extraction/blockcert/` |
+| — | Lean proofs | ❌ 40% (16 sorry) | `lean/FormalVerifML/` |
+| — | MBPP Benchmark | ❌ 10% | `benchmarks/verina/` |
 
-| Feature | Purpose |
-|---------|---------|
-| Circuit extraction from code LLMs | Identify computational subgraphs |
-| Lipschitz error bounds | Certify approximation quality |
-| Lean 4 formal verification | Mathematical proofs |
-| MBPP-Lean benchmark | Ground truth specifications |
-| Cross-model generalization | Same algorithm → same circuit |
-| Distributed extraction | Scale to 70B parameter models |
-
-### Out of Scope (Deprioritized)
-
-| Feature | Status | Reason |
-|---------|--------|--------|
-| Vision models (ViT, CLIP) | Deprioritized | Not code generation |
-| Enterprise features (auth, audit) | Deprioritized | Not needed for challenge |
-| Web interface | Deprioritized | CLI sufficient |
-| Generic HuggingFace support | Deprioritized | Focus on code LLMs only |
+**Critical Blockers:**
+- CD-T + DiscoGP extraction not implemented
+- Convex relaxation + SMT verification not implemented
+- `property_transfer` theorem incomplete (core value proposition)
+- `lipschitz_composition_bound` theorem incomplete
+- MBPP benchmark runner not implemented
 
 ---
 
@@ -120,88 +100,32 @@ pip install -r translator/requirements.txt
 lake build
 ```
 
-### Circuit Extraction (BlockCert API)
-
-```python
-from extraction.blockcert import BlockCertifier, BlockIR, BlockInterpreter, Certificate
-
-# BlockCert modules provide the IR, interpreter, certifier, and certificate generation.
-# The SheafCert extraction pipeline (CD-T + DiscoGP) is planned but not yet implemented.
-```
-
 ---
 
-## Implementation Status Details
+## Repository Structure
 
-### Component A: Circuit Extraction (`extraction/`)
-
-| Feature | Status | Notes |
-|---------|--------|-------|
-| BlockCert IR | ✅ Implemented | `extraction/blockcert/ir.py` |
-| Block Interpreter | ✅ Implemented | `extraction/blockcert/interpreter.py` |
-| Block Certifier | ✅ Implemented | `extraction/blockcert/certifier.py` |
-| Certificate Generation | ✅ Implemented | `extraction/blockcert/certificate.py` |
-| SheafCert Pipeline (CD-T + DiscoGP) | ❌ **Not implemented** | Planned replacement for archived `circuit_extractor.py` |
-
-**Note:** The legacy `circuit_extractor.py` has been archived to the `archive/legacy-blockcert` branch. The SheafCert extraction pipeline is planned but not yet implemented.
-
-### Component B: Translation (`translator/`)
-
-| Feature | Status | Notes |
-|---------|--------|-------|
-| `CircuitToLeanTranslator` | ✅ Implemented | |
-| Sparse weight formatting | ✅ Implemented | |
-| Error bound definitions | ✅ Implemented | |
-| CLI interface | ✅ Implemented | |
-| Batch translation | ✅ Implemented | |
-
-### Component C: Lean Verification (`lean/FormalVerifML/`)
-
-| Feature | Status | Notes |
-|---------|--------|-------|
-| Core structures | ✅ Complete | `Circuit`, `CircuitComponent`, `ErrorBound` |
-| Evaluation functions | ✅ Complete | `evalCircuit`, `applySparseLinear` |
-| Property definitions | ✅ Complete | `circuitRobust`, `circuitMonotonic` |
-| `property_transfer` theorem | ❌ **SORRY** | Core value proposition |
-| `lipschitz_composition_bound` | ❌ **SORRY** | Error bound justification |
-| Circuit robustness proof | ❌ **SORRY** | |
-| 13 other theorems | ❌ **SORRY** | See `docs/PROOF_ROADMAP.md` |
-
-### MBPP-Lean Benchmark (`benchmarks/verina/`)
-
-| Feature | Status | Notes |
-|---------|--------|-------|
-| README documentation | ✅ Complete | |
-| `fetch_dataset.py` | ❌ Not implemented | Scaffold only |
-| `run_benchmark.py` | ❌ Not implemented | Scaffold only |
-| Counterfactual variant testing | ❌ Not implemented | For semantic verification |
-| Cross-model circuit comparison | ❌ Not implemented | For generalization evidence |
+```
+circuitproofs/
+├── extraction/                 # Phase 2 & 4: Extraction + Certification
+│   └── blockcert/             # BlockCert modules (IR, interpreter, certifier, certificate)
+│   # Planned: cdt/ (CD-T streaming), discogp/ (sheaf optimization)
+├── translator/                 # Phase 3a: Translation
+│   ├── circuit_to_lean.py     # Circuit → Lean
+│   └── generate_lean_model.py # Generic model → Lean
+├── lean/FormalVerifML/        # Phase 3: Verification
+│   ├── base/                  # Core definitions (complete)
+│   ├── proofs/                # Theorems (16 sorry)
+│   └── generated/             # Auto-generated models
+├── benchmarks/verina/         # MBPP-Lean benchmark (scaffolding only)
+├── examples/                  # Demo scripts
+└── docs/                      # Documentation
+```
 
 ---
 
 ## Development Roadmap
 
-See [ROADMAP.md](ROADMAP.md) for detailed phases and timeline.
-
-### Phase 1: Critical Path (Weeks 1-2)
-- [ ] Implement SheafCert extraction pipeline
-- [ ] Validate Lipschitz bound tightness (< 100x empirical)
-- [ ] Complete `property_transfer` theorem
-- [ ] Complete `lipschitz_composition_bound` theorem
-
-### Phase 2: MBPP Integration (Weeks 3-4)
-- [ ] Implement `fetch_dataset.py`
-- [ ] Implement `run_benchmark.py`
-- [ ] Test on DeepSeek-Coder-1.3B with 10 MBPP problems
-
-### Phase 3: Scale & Generalize (Weeks 5-6)
-- [ ] Run on StarCoder-7B, CodeLlama-34B
-- [ ] Demonstrate cross-model circuit similarity
-- [ ] Scale to CodeLlama-70B
-
-### Phase 4: Submission (Weeks 7-8)
-- [ ] Write results analysis
-- [ ] Prepare Martian challenge submission
+See [ROADMAP.md](ROADMAP.md) for detailed phases.
 
 ---
 
@@ -216,40 +140,9 @@ See [ROADMAP.md](ROADMAP.md) for detailed phases and timeline.
 
 ---
 
-## Repository Structure
-
-```
-circuitproofs/
-├── extraction/                 # Component A: Circuit extraction
-│   └── blockcert/             # BlockCert modules (IR, interpreter, certifier, certificate)
-├── translator/                 # Component B: Translation
-│   ├── circuit_to_lean.py     # Circuit → Lean
-│   └── generate_lean_model.py # Generic model → Lean
-├── lean/FormalVerifML/        # Component C: Verification
-│   ├── base/                  # Core definitions (✅)
-│   │   ├── circuit_models.lean
-│   │   └── definitions.lean
-│   ├── proofs/                # Theorems (❌ many sorry)
-│   │   └── circuit_proofs.lean
-│   └── generated/             # Auto-generated models
-├── benchmarks/verina/         # MBPP-Lean (❌ not implemented)
-├── examples/                  # Demo scripts
-├── docs/                      # Documentation
-└── webapp/                    # Web UI (deprioritized)
-```
-
----
-
 ## Contributing
 
-We need help with:
-
-1. **Lean Expert**: Complete the `sorry` theorems in `proofs/`
-2. **MI Researcher**: Fix `_evaluate_circuit()` and validate bounds
-3. **ML Engineer**: Implement MBPP benchmark runner
-4. **Distributed Systems**: Scale extraction to 70B models
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+See [CLAUDE.md](CLAUDE.md) for development standards, commands, and code review checklist.
 
 ---
 
