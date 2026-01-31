@@ -29,6 +29,8 @@ jobs:
       additions: ${{ steps.extract.outputs.additions }}
       deletions: ${{ steps.extract.outputs.deletions }}
       has_lean_files: ${{ steps.extract.outputs.has_lean_files }}
+      has_python_files: ${{ steps.extract.outputs.has_python_files }}
+      has_binary_files: ${{ steps.extract.outputs.has_binary_files }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -41,8 +43,22 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
-          # Get PR stats from GitHub API (accurate, not affected by shallow clone)
-          pr_stats=$(gh pr view "$PR_NUMBER" --json additions,deletions,changedFiles,files)
+          # Get PR stats from GitHub API with timeout protection
+          if ! timeout 30s gh pr view "$PR_NUMBER" --json additions,deletions,changedFiles,files > /tmp/pr_stats.json 2>&1; then
+            echo "::error::Timeout or error fetching PR stats"
+            echo "files_changed=0" >> $GITHUB_OUTPUT
+            echo "additions=0" >> $GITHUB_OUTPUT
+            echo "deletions=0" >> $GITHUB_OUTPUT
+            echo "has_lean_files=false" >> $GITHUB_OUTPUT
+            echo "has_python_files=false" >> $GITHUB_OUTPUT
+            echo "has_binary_files=false" >> $GITHUB_OUTPUT
+            echo "summary=" >> $GITHUB_OUTPUT
+            echo "files<<EOF" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          pr_stats=$(cat /tmp/pr_stats.json)
           additions=$(echo "$pr_stats" | jq -r '.additions')
           deletions=$(echo "$pr_stats" | jq -r '.deletions')
           files_changed=$(echo "$pr_stats" | jq -r '.changedFiles')
@@ -52,11 +68,42 @@ jobs:
           echo "additions=$additions" >> $GITHUB_OUTPUT
           echo "deletions=$deletions" >> $GITHUB_OUTPUT
 
+          # Handle 0 files edge case
+          if [ "$files_changed" -eq 0 ] 2>/dev/null || [ -z "$files" ]; then
+            echo "::notice::PR has no file changes"
+            echo "has_lean_files=false" >> $GITHUB_OUTPUT
+            echo "has_python_files=false" >> $GITHUB_OUTPUT
+            echo "has_binary_files=false" >> $GITHUB_OUTPUT
+            echo "summary=" >> $GITHUB_OUTPUT
+            echo "files<<EOF" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # Warn if large PR
+          if [ "$files_changed" -gt 100 ]; then
+            echo "::warning::Large PR with $files_changed files"
+          fi
+
           # Check for Lean files
           if echo "$files" | grep -qE '\.lean$'; then
             echo "has_lean_files=true" >> $GITHUB_OUTPUT
           else
             echo "has_lean_files=false" >> $GITHUB_OUTPUT
+          fi
+
+          # Check for Python files
+          if echo "$files" | grep -qE '\.py$'; then
+            echo "has_python_files=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_python_files=false" >> $GITHUB_OUTPUT
+          fi
+
+          # Check for binary files by extension
+          if echo "$files" | grep -qE '\.(png|jpg|jpeg|gif|ico|pdf|zip|tar|gz|woff|woff2|ttf|eot|mp3|mp4|wav|avi|mov)$'; then
+            echo "has_binary_files=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_binary_files=false" >> $GITHUB_OUTPUT
           fi
 
           # Create a compact summary of changed files
@@ -97,20 +144,32 @@ jobs:
         run: |
           echo "::group::Debug: Execution file info"
           echo "EXECUTION_FILE=$EXECUTION_FILE"
-          ls -la "$EXECUTION_FILE" 2>/dev/null || echo "File not found"
+          ls -la "$EXECUTION_FILE" 2>&1 || true
           echo "::endgroup::"
 
-          # Extract assistant messages from execution file and search for TRIAGE_RESULT
-          if [ -f "$EXECUTION_FILE" ]; then
-            # Extract all text content from assistant messages
-            TRIAGE_OUTPUT=$(jq -r '.[] | select(.type == "assistant") | .message.content[]? | select(.type == "text") | .text' "$EXECUTION_FILE" 2>/dev/null || echo "")
-            echo "::group::Debug: Extracted output"
-            echo "$TRIAGE_OUTPUT" | head -50
-            echo "::endgroup::"
-          else
-            echo "::warning::Execution file not found: $EXECUTION_FILE"
-            TRIAGE_OUTPUT=""
+          # Validate execution file exists and is valid JSON
+          if [ ! -f "$EXECUTION_FILE" ]; then
+            echo "::error::Execution file not found: $EXECUTION_FILE"
+            echo "tier=moderate" >> $GITHUB_OUTPUT
+            echo "::warning::Defaulting to moderate tier due to missing execution file"
+            exit 0
           fi
+
+          if ! jq empty "$EXECUTION_FILE" 2>/dev/null; then
+            echo "::error::Invalid JSON in execution file"
+            echo "::group::Debug: First 100 lines of execution file"
+            head -100 "$EXECUTION_FILE"
+            echo "::endgroup::"
+            echo "tier=moderate" >> $GITHUB_OUTPUT
+            echo "::warning::Defaulting to moderate tier due to invalid JSON"
+            exit 0
+          fi
+
+          # Extract assistant messages from execution file (errors now visible)
+          TRIAGE_OUTPUT=$(jq -r '.[] | select(.type == "assistant") | .message.content[]? | select(.type == "text") | .text' "$EXECUTION_FILE")
+          echo "::group::Debug: Extracted output"
+          echo "$TRIAGE_OUTPUT" | head -50
+          echo "::endgroup::"
 
           # Parse the triage output for the result line
           if echo "$TRIAGE_OUTPUT" | grep -qF "TRIAGE_RESULT: simple"; then
