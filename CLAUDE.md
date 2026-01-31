@@ -16,25 +16,25 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```bash
 # 1. Write test first
 # 2. Run test to see it fail
-python -m pytest translator/tests/test_new_feature.py -v
+docker run --rm -v $(pwd):/app circuitproofs python -m pytest translator/tests/test_new_feature.py -v
 
 # 3. Implement feature
 # 4. Run test to see it pass
-python -m pytest translator/tests/test_new_feature.py -v
+docker run --rm -v $(pwd):/app circuitproofs python -m pytest translator/tests/test_new_feature.py -v
 
 # 5. Refactor and verify all tests still pass
-python -m pytest translator/tests/ -v
+docker run --rm -v $(pwd):/app circuitproofs python -m pytest translator/tests/ -v
 ```
 
 **For Lean code:**
 ```bash
 # 1. Write theorem statement first (this is your "test")
 # 2. Attempt build to see it fail
-lake build
+docker run --rm -v $(pwd):/app circuitproofs lake build
 
 # 3. Implement the proof
 # 4. Build to verify proof compiles
-lake build
+docker run --rm -v $(pwd):/app circuitproofs lake build
 ```
 
 ### Production-Ready Code Standards
@@ -98,7 +98,7 @@ lake build
 ### Code Review Checklist
 
 Before committing, verify:
-- [ ] All tests pass (`python -m pytest` and `lake build`)
+- [ ] All tests pass (`docker run --rm -v $(pwd):/app circuitproofs python -m pytest` and `docker run --rm -v $(pwd):/app circuitproofs lake build`)
 - [ ] New code has corresponding tests
 - [ ] Type hints/annotations are complete
 - [ ] Docstrings are present and accurate
@@ -113,120 +113,80 @@ Before committing, verify:
 
 ## Core Architecture
 
-### Three-Component Pipeline
+### 4-Phase Pipeline
 
-1. **Python Extraction Layer** (`extraction/`, `translator/`)
-   - Extracts circuits from PyTorch models using BlockCert-style pruning
-   - Translates PyTorch/HuggingFace models to JSON intermediate format
-   - Generates Lean 4 code from JSON specifications
-   - Computes certified error bounds via Lipschitz composition
+```
+Phase 1: Adversarial Task Definition (D, s)
+  Define task τ = (D, s) with FIM templates + binary scoring function
+         ↓
+Phase 2: Hybrid Extraction (CD-T → DiscoGP)
+  2a. CD-T coarse filter: β/γ decomposition, relevance scores, streaming
+  2b. DiscoGP sheaf optimization: Gumbel-Sigmoid masks, L_GP objective
+         ↓
+Phase 3: Lean Verification
+  3a. Translation via Leanverifier (SVD compact proofs)
+  3b. Convex relaxation of input space (X_relaxed polytope)
+  3c. SMT solving (Mean+Diff trick, Max Row-Diff bound)
+         ↓
+Phase 4: BlockCert Certification
+  Local ε calculation → Lipschitz composition → certificate JSON
+  Guarantee: Logit_diff(Sheaf) > ε_global ⟹ Logit_diff(Model) > 0
+```
 
-2. **Lean 4 Verification Core** (`lean/FormalVerifML/`)
-   - **`base/`**: Core mathematical definitions and properties
-     - `definitions.lean`: Base ML model types (NeuralNet, LinearModel, DecisionTree)
-     - `circuit_models.lean`: Circuit definitions with sparse edge representations
-     - `ml_properties.lean`: Robustness, fairness, interpretability properties
-     - `advanced_models.lean`: Transformer and attention mechanisms
-     - `vision_models.lean`: Vision Transformer (ViT) architectures
-     - `large_scale_models.lean`: 100M+ parameter models with distributed support
-     - `enterprise_features.lean`: Multi-user, audit logging, rate limiting
-   - **`generated/`**: Auto-generated model definitions from Python translator
-   - **`proofs/`**: Verification proof scripts for specific properties
+### Component Status
 
-3. **Web Interface** (`webapp/`)
-   - Flask-based UI for uploading models and visualizing verification results
+| Phase | Component | Status | Location |
+|-------|-----------|--------|----------|
+| 1 | Task Definition | ❌ Not implemented | TBD |
+| 2a | CD-T streaming | ❌ Not implemented | `extraction/` (planned) |
+| 2b | DiscoGP optimization | ❌ Not implemented | `extraction/` (planned) |
+| 3a | Lean translation | ⚠️ 85% | `translator/circuit_to_lean.py` |
+| 3b | Convex relaxation | ❌ Not implemented | TBD |
+| 3c | SMT solving | ❌ Not implemented | TBD |
+| 4 | BlockCert certification | ⚠️ Partial | `extraction/blockcert/` |
+| — | Lean proofs | ❌ 40% (16 sorry) | `lean/FormalVerifML/` |
+| — | MBPP Benchmark | ❌ 10% | `benchmarks/verina/` |
 
 ### Key Data Flow
 
 ```
-PyTorch Model → JSON → Lean Definition → Formal Proof → Certificate
-     ↓             ↓          ↓              ↓
-  export_from  generate   lake build    verification
-  _pytorch.py  _lean_model              results
-```
-
-For circuits specifically:
-```
-PyTorch Model → Circuit Extraction → Circuit JSON → Lean Circuit → Proofs
-                (circuit_extractor.py)  (circuit_to_lean.py)
+PyTorch Model → CD-T filter → DiscoGP sheaf → Circuit JSON → Lean Circuit → Proofs → Certificate
+                (extraction/)                  (circuit_to_lean.py)          (lean/)   (blockcert/)
 ```
 
 ## Development Commands
 
+### Docker Setup
+
+```bash
+# Build Docker image (includes elan, Lean toolchain, mathlib cache)
+docker build -t circuitproofs .
+
+# Run with local changes mounted
+docker run --rm -v $(pwd):/app circuitproofs <command>
+```
+
 ### Building and Testing
 
 ```bash
-# Build all Lean code and run verification
-lake build
+# Build all Lean code
+docker run --rm -v $(pwd):/app circuitproofs lake build
 
-# Build and run the main executable
-lake exe formal_verif_ml_exe
+# Run Python tests
+docker run --rm -v $(pwd):/app circuitproofs python -m pytest translator/ -v
 
-# Clean build artifacts
-lake clean
-
-# Update Lean dependencies (mathlib)
-lake update
+# Run comprehensive Python tests
+docker run --rm -v $(pwd):/app circuitproofs python -m pytest translator/run_comprehensive_tests.py
 ```
 
-### Python Translation Workflow
+### Translation
 
 ```bash
-# Export PyTorch model to JSON
-python translator/export_from_pytorch.py \
-    --model_path <path> \
-    --output_path model.json \
-    --model_type [nn|transformer|vit]
-
-# Generate Lean code from JSON
-python translator/generate_lean_model.py \
-    --model_json model.json \
-    --output_lean lean/FormalVerifML/generated/my_model.lean
-
-# Circuit extraction and translation
-python extraction/circuit_extractor.py  # or use example_extraction.py
-python translator/circuit_to_lean.py \
+# Translate circuit JSON to Lean
+docker run --rm -v $(pwd):/app circuitproofs \
+    python translator/circuit_to_lean.py \
     --circuit_json circuit.json \
     --output_dir lean/FormalVerifML/generated
-```
-
-### Testing
-
-```bash
-# Run comprehensive Python tests
-python translator/run_comprehensive_tests.py
-
-# Run all tests with pytest
-python -m pytest translator/tests/ -v --cov=translator
-
-# Test enterprise features
-python translator/test_enterprise_features.py
-
-# Test HuggingFace model support
-python translator/test_huggingface_models.py
-
-# Run end-to-end circuit pipeline example
-python examples/end_to_end_pipeline.py
-```
-
-### Web Interface
-
-```bash
-# Start Flask development server
-python webapp/app.py
-
-# Production deployment
-gunicorn -w 4 -b 0.0.0.0:5000 webapp.app:app
-```
-
-### Docker
-
-```bash
-# Build Docker image
-docker build -t circuitproofs .
-
-# Run with volume mount
-docker run -p 5000:5000 -v $(pwd)/models:/app/models circuitproofs
 ```
 
 ## Critical Architecture Notes
@@ -247,7 +207,7 @@ The BlockCert-style error bound computation uses **Lipschitz composition**:
 - Global error bound: `‖F̂(x) - F(x)‖ ≤ Σ_i (ε_i ∏_{j>i} L_j)`
 - This bound is computed empirically during extraction and verified formally in Lean
 
-See `extraction/circuit_extractor.py:compute_error_bounds()` for implementation.
+See `extraction/blockcert/certifier.py` for implementation.
 
 ### Model Type Hierarchy
 
@@ -348,10 +308,27 @@ These features are configurable via `EnterpriseConfig` structures in Lean.
 - **Coverage target**: 90%+ test coverage on Python code
 - **Regression tests**: Every bug fix must include a test that would have caught it
 
+## Datasets
+
+| Dataset | Purpose | Phase |
+|---------|---------|-------|
+| ManyTypes4Py | Adversarial FIM tasks (type prediction) | 1 |
+| The Stack (TypeScript) | Adversarial FIM tasks (type prediction) | 1 |
+| Verina (189 Lean 4 challenges) | Ground truth specifications | 1, 3 |
+| IOI (Indirect Object Identification) | Circuit discovery calibration | 2 |
+| Greater-Than | Circuit discovery calibration | 2 |
+| Tracr | Compiled circuits with ground truth | 2 |
+
+## Key References
+
+- [princeton-nlp/Edge-Pruning](https://github.com/princeton-nlp/Edge-Pruning) — DiscoGP basis
+- [TransformerLens](https://github.com/TransformerLensOrg/TransformerLens) — Hook-based CD-T, calibration baselines
+- [fraware/leanverifier](https://github.com/fraware/leanverifier) — PyTorch → Lean translation
+- [S3L-official/QEBVerif](https://github.com/S3L-official/QEBVerif) — MILP encoding reference
+- [neuronpedia](https://www.neuronpedia.org/) — Feature visualization reference
+
 ## Documentation
 
 - `README.md`: High-level overview and quick start
 - `docs/CERTIFIED_CIRCUITS.md`: Detailed circuit verification methodology
-- `docs/user_guide.md`: User-facing documentation
-- `docs/developer_guide.md`: Architecture and extension guide
-- `CONTRIBUTING.md`: Development setup and code standards
+- `docs/PROOF_ROADMAP.md`: Lean `sorry` theorem tracking

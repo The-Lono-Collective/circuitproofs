@@ -1,5 +1,5 @@
 {
-    "model_type": "NN",
+    "model_type": "neural_net",
     "name": "anotherNeuralNet",
     "input_dim":  3,
     "output_dim": 2,
