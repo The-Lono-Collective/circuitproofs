@@ -28,7 +28,12 @@ on:
 jobs:
   # Phase 4: Haiku prescreen for quick rejection of clean PRs
   prescreen:
-    # Run prescreen if: called via workflow (no label) and not skipping, OR manual label trigger
+    # Two trigger paths determine when prescreen runs:
+    # 1. workflow_call from triage (no label event): Run prescreen unless skip_prescreen=true
+    # 2. Manual label trigger (claude-moderate label): Always run prescreen
+    # The condition checks:
+    # - (!github.event.label && inputs.skip_prescreen != true): Called by triage, not skipping
+    # - (github.event.label.name == 'claude-moderate'): Manual label trigger
     if: |
       (!github.event.label && inputs.skip_prescreen != true) ||
       (github.event.label.name == 'claude-moderate')
@@ -51,19 +56,15 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          claude_args: "--model haiku --max-turns 4"
+          claude_args: "--model haiku --max-turns 6"
           prompt: |
-            You are a quick prescreen agent. Follow .claude/prompts/prescreen.md exactly.
+            Quick prescreen: scan PR for red flags requiring full review.
 
-            Check for red flags that require full review:
-            - Security patterns (auth, crypto, secrets)
-            - Lean `sorry` statements
-            - Missing type hints on new Python functions
-            - Large changes (>300 lines)
-            - Obvious bugs or logic errors
+            Red flags: security patterns, Lean `sorry`, missing Python type hints, >300 lines, obvious bugs.
 
-            Output EXACTLY one of:
+            After checking, output EXACTLY one line:
             PRESCREEN_RESULT: CLEAN
+            or
             PRESCREEN_RESULT: NEEDS_REVIEW
 
       - name: Parse prescreen result
@@ -71,12 +72,26 @@ jobs:
         env:
           EXECUTION_FILE: ${{ steps.prescreen.outputs.execution_file }}
         run: |
-          # Extract assistant messages from execution file
-          if [ -f "$EXECUTION_FILE" ]; then
-            PRESCREEN_OUTPUT=$(jq -r '.[] | select(.type == "assistant") | .message.content[]? | select(.type == "text") | .text' "$EXECUTION_FILE" 2>/dev/null || echo "")
-          else
-            PRESCREEN_OUTPUT=""
+          # Validate execution file exists and is valid JSON
+          if [ ! -f "$EXECUTION_FILE" ]; then
+            echo "::error::Execution file not found: $EXECUTION_FILE"
+            echo "needs_review=true" >> $GITHUB_OUTPUT
+            echo "::warning::Defaulting to needs_review=true due to missing execution file"
+            exit 0
           fi
+
+          if ! jq empty "$EXECUTION_FILE" 2>/dev/null; then
+            echo "::error::Invalid JSON in execution file"
+            echo "::group::Debug: First 100 lines of execution file"
+            head -100 "$EXECUTION_FILE"
+            echo "::endgroup::"
+            echo "needs_review=true" >> $GITHUB_OUTPUT
+            echo "::warning::Defaulting to needs_review=true due to invalid JSON"
+            exit 0
+          fi
+
+          # Extract assistant messages from execution file (errors now visible)
+          PRESCREEN_OUTPUT=$(jq -r '.[] | select(.type == "assistant") | .message.content[]? | select(.type == "text") | .text' "$EXECUTION_FILE")
 
           if echo "$PRESCREEN_OUTPUT" | grep -qF "PRESCREEN_RESULT: CLEAN"; then
             echo "needs_review=false" >> $GITHUB_OUTPUT
@@ -90,6 +105,9 @@ jobs:
   # Main review job - only runs if prescreen detects issues or was skipped
   review-moderate:
     needs: prescreen
+    # Run full review when:
+    # 1. Prescreen flagged issues (needs_review=true)
+    # 2. Called via workflow_call with skip_prescreen=true (e.g., @claude --full)
     if: |
       needs.prescreen.outputs.needs_review == 'true' ||
       (!github.event.label && inputs.skip_prescreen == true)
