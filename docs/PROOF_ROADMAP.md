@@ -213,14 +213,17 @@ theorem error_bound_valid (circuit : Circuit) : ...
 ### Working with Lean 4
 
 ```bash
+# Build Docker image (includes elan, Lean toolchain, mathlib cache)
+docker build -t circuitproofs .
+
 # Build and check for errors
-lake build
+docker run --rm circuitproofs lake build
 
 # Check specific file
-lake build FormalVerifML.proofs.circuit_proofs
+docker run --rm circuitproofs lake build FormalVerifML.proofs.circuit_proofs
 
-# Interactive development
-# Use VS Code with lean4 extension
+# Interactive development with local changes
+docker run --rm -v $(pwd):/app circuitproofs lake build
 ```
 
 ### Useful Tactics
