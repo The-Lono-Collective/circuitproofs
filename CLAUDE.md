@@ -16,25 +16,25 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```bash
 # 1. Write test first
 # 2. Run test to see it fail
-python -m pytest translator/tests/test_new_feature.py -v
+docker run --rm -v $(pwd):/app circuitproofs python -m pytest translator/tests/test_new_feature.py -v
 
 # 3. Implement feature
 # 4. Run test to see it pass
-python -m pytest translator/tests/test_new_feature.py -v
+docker run --rm -v $(pwd):/app circuitproofs python -m pytest translator/tests/test_new_feature.py -v
 
 # 5. Refactor and verify all tests still pass
-python -m pytest translator/tests/ -v
+docker run --rm -v $(pwd):/app circuitproofs python -m pytest translator/tests/ -v
 ```
 
 **For Lean code:**
 ```bash
 # 1. Write theorem statement first (this is your "test")
 # 2. Attempt build to see it fail
-lake build
+docker run --rm -v $(pwd):/app circuitproofs lake build
 
 # 3. Implement the proof
 # 4. Build to verify proof compiles
-lake build
+docker run --rm -v $(pwd):/app circuitproofs lake build
 ```
 
 ### Production-Ready Code Standards
@@ -98,7 +98,7 @@ lake build
 ### Code Review Checklist
 
 Before committing, verify:
-- [ ] All tests pass (`python -m pytest` and `lake build`)
+- [ ] All tests pass (`docker run --rm -v $(pwd):/app circuitproofs python -m pytest` and `docker run --rm -v $(pwd):/app circuitproofs lake build`)
 - [ ] New code has corresponding tests
 - [ ] Type hints/annotations are complete
 - [ ] Docstrings are present and accurate
@@ -156,80 +156,37 @@ PyTorch Model → CD-T filter → DiscoGP sheaf → Circuit JSON → Lean Circui
 
 ## Development Commands
 
+### Docker Setup
+
+```bash
+# Build Docker image (includes elan, Lean toolchain, mathlib cache)
+docker build -t circuitproofs .
+
+# Run with local changes mounted
+docker run --rm -v $(pwd):/app circuitproofs <command>
+```
+
 ### Building and Testing
 
 ```bash
-# Build all Lean code and run verification
-lake build
+# Build all Lean code
+docker run --rm -v $(pwd):/app circuitproofs lake build
 
-# Build and run the main executable
-lake exe formal_verif_ml_exe
+# Run Python tests
+docker run --rm -v $(pwd):/app circuitproofs python -m pytest translator/ -v
 
-# Clean build artifacts
-lake clean
-
-# Update Lean dependencies (mathlib)
-lake update
+# Run comprehensive Python tests
+docker run --rm -v $(pwd):/app circuitproofs python -m pytest translator/run_comprehensive_tests.py
 ```
 
-### Python Translation Workflow
+### Translation
 
 ```bash
-# Export PyTorch model to JSON
-python translator/export_from_pytorch.py \
-    --model_path <path> \
-    --output_path model.json \
-    --model_type [nn|transformer|vit]
-
-# Generate Lean code from JSON
-python translator/generate_lean_model.py \
-    --model_json model.json \
-    --output_lean lean/FormalVerifML/generated/my_model.lean
-
-# Circuit extraction and translation
-python extraction/circuit_extractor.py  # or use example_extraction.py
-python translator/circuit_to_lean.py \
+# Translate circuit JSON to Lean
+docker run --rm -v $(pwd):/app circuitproofs \
+    python translator/circuit_to_lean.py \
     --circuit_json circuit.json \
     --output_dir lean/FormalVerifML/generated
-```
-
-### Testing
-
-```bash
-# Run comprehensive Python tests
-python translator/run_comprehensive_tests.py
-
-# Run all tests with pytest
-python -m pytest translator/tests/ -v --cov=translator
-
-# Test enterprise features
-python translator/test_enterprise_features.py
-
-# Test HuggingFace model support
-python translator/test_huggingface_models.py
-
-# Run end-to-end circuit pipeline example
-python examples/end_to_end_pipeline.py
-```
-
-### Web Interface
-
-```bash
-# Start Flask development server
-python webapp/app.py
-
-# Production deployment
-gunicorn -w 4 -b 0.0.0.0:5000 webapp.app:app
-```
-
-### Docker
-
-```bash
-# Build Docker image
-docker build -t circuitproofs .
-
-# Run with volume mount
-docker run -p 5000:5000 -v $(pwd)/models:/app/models circuitproofs
 ```
 
 ## Critical Architecture Notes
