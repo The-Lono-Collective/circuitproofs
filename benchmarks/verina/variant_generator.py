@@ -11,7 +11,7 @@ from copy import deepcopy
 from dataclasses import dataclass
 from typing import Dict, List, Tuple
 
-from fetch_dataset import MBPPTask
+from .fetch_dataset import MBPPTask
 
 
 @dataclass

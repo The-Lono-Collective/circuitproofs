@@ -1,5 +1,14 @@
 # LeanVerifier Developer Guide
 
+> **⚠️ PARTIALLY OUTDATED** — This guide covers the general-purpose framework architecture. The project has pivoted to focus on the [Martian Interpretability Challenge](https://withmartian.com/prize). For current development priorities, see:
+> - [CLAUDE.md](../CLAUDE.md) — Current development instructions
+> - [ROADMAP.md](../ROADMAP.md) — Phases and critical blockers
+> - [PROOF_ROADMAP.md](PROOF_ROADMAP.md) — Lean theorem priorities
+>
+> Many sections (enterprise, vision models, web interface) are deprioritized and not actively maintained.
+
+---
+
 > **Comprehensive guide for developers extending and contributing to the LeanVerifier framework**
 
 ## Table of Contents
