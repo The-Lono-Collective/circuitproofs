@@ -40,16 +40,52 @@ def empirical_demographic_parity (f : Individual → Nat) (protected_pred : Indi
   p1 = p2
 
 /--
-Prove that if the classifier is constant (always returns 1), then the empirical demographic parity holds.
+Prove that if the classifier is constant (always returns 1) and both demographic groups
+are either both empty or both non-empty, then empirical demographic parity holds.
 
-Note: This theorem uses sorry as a placeholder. A complete proof would show that
-when the classifier always returns 1, both protected and non-protected groups have
-100% positive classification rate, achieving demographic parity.
+Note: The assumption that both groups have consistent emptiness is necessary because
+demographic parity is undefined when comparing a group with 100% positive rate
+to an empty group (which gets assigned rate 0 by convention).
 --/
 theorem example_demographic_parity (toFeatures : Individual → Array Float)
   [DecidablePred protected_group]
-  (h : ∀ ind, classify ind toFeatures = 1) :
+  (h : ∀ ind, classify ind toFeatures = 1)
+  (h_groups : (I.filter (protected_group ·)).length = 0 ↔
+              (I.filter (¬protected_group ·)).length = 0) :
   empirical_demographic_parity I (classify · toFeatures) protected_group := by
-  sorry
+  unfold empirical_demographic_parity
+  simp only []
+  -- Let ps = protected, nps = non-protected
+  set ps := I.filter (protected_group ·) with hps_def
+  set nps := I.filter (¬protected_group ·) with hnps_def
+  -- If all classifications are 1, then filtering for f = 1 doesn't remove anyone
+  have h_filter_ps : (ps.filter (λ ind => classify ind toFeatures = 1)) = ps := by
+    apply List.filter_eq_self.mpr
+    intro x _
+    simp only [decide_eq_true_eq]
+    exact h x
+  have h_filter_nps : (nps.filter (λ ind => classify ind toFeatures = 1)) = nps := by
+    apply List.filter_eq_self.mpr
+    intro x _
+    simp only [decide_eq_true_eq]
+    exact h x
+  simp only [h_filter_ps, h_filter_nps]
+  -- Now p1 = if ps.length = 0 then 0 else ps.length / ps.length
+  -- And p2 = if nps.length = 0 then 0 else nps.length / nps.length
+  -- By h_groups, either both empty (both 0) or both non-empty (both n/n = 1)
+  cases Decidable.em (ps.length = 0) with
+  | inl hps_empty =>
+    -- ps is empty, so by h_groups, nps is also empty
+    have hnps_empty : nps.length = 0 := h_groups.mp hps_empty
+    simp [hps_empty, hnps_empty]
+  | inr hps_nonempty =>
+    -- ps is non-empty, so by h_groups, nps is also non-empty
+    have hnps_nonempty : nps.length ≠ 0 := fun h_eq => hps_nonempty (h_groups.mpr h_eq)
+    simp only [if_neg hps_nonempty, if_neg hnps_nonempty]
+    -- ps.length / ps.length = nps.length / nps.length
+    -- Both are n / n = 1 for non-zero n
+    have : ps.length / ps.length = 1 := Nat.div_self (Nat.pos_of_ne_zero hps_nonempty)
+    have : nps.length / nps.length = 1 := Nat.div_self (Nat.pos_of_ne_zero hnps_nonempty)
+    omega
 
 end FairnessExample

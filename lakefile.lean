@@ -12,6 +12,6 @@ lean_lib FormalVerifML where
 
 @[default_target]
 lean_exe formal_verif_ml_exe where
-  root := `FormalVerifML.formal_verif_ml
+  root := `FormalVerifML.Main
   supportInterpreter := true
   srcDir := "lean"

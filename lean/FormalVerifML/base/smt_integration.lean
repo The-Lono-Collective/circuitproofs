@@ -93,6 +93,9 @@ def formulaToSMTLib : SMTFormula → String
   | SMTFormula.forall var body => s!"(forall (({var} Real)) {formulaToSMTLib body})"
   | SMTFormula.exists var body => s!"(exists (({var} Real)) {formulaToSMTLib body})"
 
+instance : ToString SMTFormula where
+  toString := formulaToSMTLib
+
 /--
 Generate SMT formula for attention robustness property.
 --/

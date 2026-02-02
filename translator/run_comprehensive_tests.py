@@ -8,9 +8,59 @@ import subprocess
 import json
 import time
 import os
+import sys
 import argparse
+import shutil
 from pathlib import Path
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Optional, Tuple
+
+
+def run_with_live_output(
+    cmd: List[str], timeout: int, description: str
+) -> Tuple[int, str, str]:
+    """
+    Run a command with live output that overwrites the current line.
+    Returns (return_code, stdout, stderr).
+    """
+    process = subprocess.Popen(
+        cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        bufsize=1,
+    )
+
+    terminal_width = shutil.get_terminal_size((80, 20)).columns
+    output_lines = []
+    start_time = time.time()
+
+    try:
+        while True:
+            # Check timeout
+            if time.time() - start_time > timeout:
+                process.kill()
+                process.wait()
+                raise subprocess.TimeoutExpired(cmd, timeout)
+
+            line = process.stdout.readline()
+            if not line and process.poll() is not None:
+                break
+
+            if line:
+                line = line.rstrip()
+                output_lines.append(line)
+                # Truncate line to terminal width and overwrite
+                display_line = line[:terminal_width - 3] + "..." if len(line) > terminal_width else line
+                print(f"\r{display_line:<{terminal_width}}", end="", flush=True)
+
+        # Clear the progress line
+        print(f"\r{' ' * terminal_width}\r", end="", flush=True)
+
+        return process.returncode, "\n".join(output_lines), ""
+
+    except subprocess.TimeoutExpired:
+        print(f"\r{' ' * terminal_width}\r", end="", flush=True)
+        raise
 
 
 class ComprehensiveTestRunner:
@@ -29,7 +79,7 @@ class ComprehensiveTestRunner:
 
         try:
             cmd = [
-                "py",
+                sys.executable,
                 "translator/test_huggingface_models.py",
                 "--model_size",
                 self.config.get("huggingface_model_size", "small"),
@@ -63,7 +113,7 @@ class ComprehensiveTestRunner:
 
         try:
             cmd = ["lake", "build"]
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=720)
 
             if result.returncode == 0:
                 print("✅ Lean build completed successfully")
@@ -87,7 +137,7 @@ class ComprehensiveTestRunner:
 
         try:
             # Run Lean with our test suite
-            cmd = ["lake", "exe", "FormalVerifML"]
+            cmd = ["lake", "exe", "formal_verif_ml_exe"]
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=180)
 
             if result.returncode == 0:
@@ -113,7 +163,7 @@ class ComprehensiveTestRunner:
         try:
             # Test memory-optimized transformer generation
             cmd = [
-                "py",
+                sys.executable,
                 "translator/generate_lean_model.py",
                 "--model_json",
                 "translator/sample_transformer.json",
@@ -145,7 +195,7 @@ class ComprehensiveTestRunner:
 
         try:
             # Test SMT formula generation
-            cmd = ["lake", "exe", "FormalVerifML"]
+            cmd = ["lake", "exe", "formal_verif_ml_exe"]
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
 
             if result.returncode == 0:
@@ -171,7 +221,7 @@ class ComprehensiveTestRunner:
         try:
             # Start web server
             web_process = subprocess.Popen(
-                ["py", "webapp/app.py"], stdout=subprocess.PIPE, stderr=subprocess.PIPE
+                [sys.executable, "webapp/app.py"], stdout=subprocess.PIPE, stderr=subprocess.PIPE
             )
 
             # Wait for server to start

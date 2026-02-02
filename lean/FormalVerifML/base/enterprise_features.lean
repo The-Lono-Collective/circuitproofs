@@ -331,7 +331,7 @@ def encryptData (data : String) (config : EnterpriseConfig) : String :=
 
 def decryptData (encryptedData : String) (config : EnterpriseConfig) : String :=
   if config.enableEncryption ∧ encryptedData.startsWith "encrypted_" then
-    String.ofList (encryptedData.drop 10).copy.toList
+    (encryptedData.drop 10).toString
   else
     encryptedData
 
