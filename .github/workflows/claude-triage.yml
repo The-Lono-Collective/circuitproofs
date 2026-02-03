@@ -164,9 +164,7 @@ jobs:
 
             if ! jq empty "$EXECUTION_FILE" 2>/dev/null; then
               echo "::error::Invalid JSON in execution file"
-              echo "::group::Debug: First 100 lines of execution file"
-              head -100 "$EXECUTION_FILE"
-              echo "::endgroup::"
+              # Note: Not dumping file contents to avoid potential secret leakage
               echo "tier=moderate" >> $GITHUB_OUTPUT
               echo "::warning::Defaulting to moderate tier due to invalid JSON"
               exit 0

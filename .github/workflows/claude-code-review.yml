@@ -142,11 +142,6 @@ jobs:
         env:
           EXECUTION_FILE: ${{ steps.triage.outputs.execution_file }}
         run: |
-          echo "::group::Debug: Execution file info"
-          echo "EXECUTION_FILE=$EXECUTION_FILE"
-          ls -la "$EXECUTION_FILE" 2>&1 || true
-          echo "::endgroup::"
-
           # Validate execution file exists and is valid JSON
           if [ ! -f "$EXECUTION_FILE" ]; then
             echo "::error::Execution file not found: $EXECUTION_FILE"
@@ -157,9 +152,7 @@ jobs:
 
           if ! jq empty "$EXECUTION_FILE" 2>/dev/null; then
             echo "::error::Invalid JSON in execution file"
-            echo "::group::Debug: First 100 lines of execution file"
-            head -100 "$EXECUTION_FILE"
-            echo "::endgroup::"
+            # Note: Not dumping file contents to avoid potential secret leakage
             echo "tier=moderate" >> $GITHUB_OUTPUT
             echo "::warning::Defaulting to moderate tier due to invalid JSON"
             exit 0
@@ -167,9 +160,7 @@ jobs:
 
           # Extract assistant messages from execution file (errors now visible)
           TRIAGE_OUTPUT=$(jq -r '.[] | select(.type == "assistant") | .message.content[]? | select(.type == "text") | .text' "$EXECUTION_FILE")
-          echo "::group::Debug: Extracted output"
-          echo "$TRIAGE_OUTPUT" | head -50
-          echo "::endgroup::"
+          # Note: Not logging TRIAGE_OUTPUT to avoid potential secret leakage
 
           # Parse the triage output for the result line
           if echo "$TRIAGE_OUTPUT" | grep -qF "TRIAGE_RESULT: simple"; then
@@ -186,11 +177,6 @@ jobs:
             echo "tier=moderate" >> $GITHUB_OUTPUT
             echo "::warning::Could not parse triage result, defaulting to moderate"
           fi
-
-          # Verify output was written
-          echo "::group::Debug: GITHUB_OUTPUT contents"
-          cat "$GITHUB_OUTPUT"
-          echo "::endgroup::"
 
       - name: Apply tier label
         uses: actions/github-script@v7
