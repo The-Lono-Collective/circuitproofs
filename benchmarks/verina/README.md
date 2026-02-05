@@ -1,6 +1,23 @@
 # MBPP-Lean Benchmark Integration
 
-This module integrates the MBPP (Mostly Basic Python Problems) subset from the [VERINA benchmark](https://github.com/sunblaze-ucb/verina), which provides 49 MBPP problems manually translated to Lean 4 with formal specifications.
+> **Status:** ❌ Not Implemented — Scaffolding only
+
+This module will integrate the MBPP (Mostly Basic Python Problems) subset from the [VERINA benchmark](https://github.com/sunblaze-ucb/verina), which provides 49 MBPP problems manually translated to Lean 4 with formal specifications.
+
+---
+
+## Implementation Status
+
+| File | Status | Description |
+|------|--------|-------------|
+| `README.md` | ✅ Complete | This documentation |
+| `fetch_dataset.py` | ❌ **Not implemented** | Download VERINA dataset |
+| `run_benchmark.py` | ❌ **Not implemented** | Run extraction + verification |
+| Counterfactual variant testing | ❌ **Not implemented** | Generate counterfactual variants |
+| Cross-model circuit comparison | ❌ **Not implemented** | Compare circuits across models |
+| `data/` | ❌ **Empty** | Downloaded tasks go here |
+
+---
 
 ## Purpose
 
@@ -10,19 +27,87 @@ MBPP problems with Lean specifications allow us to:
 2. **Enable Counterfactual Testing**: Test that circuits capture semantics, not syntax, by comparing circuits from input variants (renamed variables, reordered arguments)
 3. **Provide Ground Truth**: The pre-written Lean specifications serve as the "answer key" for what extracted circuits should compute
 
-## How It Works
+---
+
+## Planned Architecture
 
 ```
 Model solves MBPP problem (e.g., "calculate average")
          ↓
-Extract circuit from model
+Extract circuit from model (Component A)
          ↓
-Translate circuit to Lean
+Translate circuit to Lean (Component B)
          ↓
-Prove circuit matches MBPP Lean specification
+Prove circuit matches MBPP Lean specification (Component C)
          ↓
 Certificate: Circuit correctly implements the algorithm
 ```
+
+---
+
+## Files to Implement
+
+### 1. `fetch_dataset.py` (P0)
+
+```python
+"""
+Download VERINA dataset from HuggingFace.
+Extract MBPP-Lean subset (49 problems).
+Save to data/mbpp/ directory.
+"""
+
+def fetch_verina_dataset() -> None:
+    """Download and extract VERINA dataset."""
+    # TODO: Implement
+    # 1. Download from huggingface.co/datasets/sunblaze-ucb/verina
+    # 2. Extract MBPP subset (verina-basic)
+    # 3. Save to data/mbpp/
+    pass
+
+def load_mbpp_task(task_id: str) -> MBPPTask:
+    """Load a single MBPP task with its Lean specification."""
+    # TODO: Implement
+    pass
+```
+
+### 2. `run_benchmark.py` (P0)
+
+```python
+"""
+Run the full benchmark pipeline:
+1. Load MBPP problem
+2. Have model generate solution
+3. Extract circuit
+4. Translate to Lean
+5. Attempt proof against spec
+"""
+
+def run_single_problem(
+    problem_id: str,
+    model_name: str
+) -> BenchmarkResult:
+    """Run benchmark on a single MBPP problem."""
+    # TODO: Implement
+    pass
+
+def run_full_benchmark(
+    model_name: str,
+    problem_ids: List[str] = None
+) -> List[BenchmarkResult]:
+    """Run benchmark on all (or specified) MBPP problems."""
+    # TODO: Implement
+    pass
+```
+
+### 3. Counterfactual Variant Testing (P1)
+
+Generate semantic-preserving variants of MBPP problems for counterfactual testing (e.g., rename variables, reorder parameters). Implementation TBD.
+
+### 4. Cross-Model Circuit Comparison (P1)
+
+Compare circuits extracted from different models or variants to demonstrate generalization. Implementation TBD.
+
+---
 
 ## Dataset Source
 
@@ -31,47 +116,52 @@ The MBPP-Lean specifications come from VERINA-BASIC, which contains:
 - Each problem includes: natural language description, Lean implementation, formal specification, proof, and test cases
 - Human-verified translations (not LLM-generated)
 
-## Setup
+---
+
+## Usage (After Implementation)
 
 ```bash
 # Fetch the MBPP-Lean dataset
 python benchmarks/verina/fetch_dataset.py
 
 # Run benchmarks on MBPP subset
-python benchmarks/verina/run_benchmark.py --subset mbpp
+python benchmarks/verina/run_benchmark.py --model deepseek-coder-1.3b --subset mbpp
+
+# Run with counterfactual testing
+python benchmarks/verina/run_benchmark.py --model deepseek-coder-1.3b --counterfactual
+
+# Compare across models
+python benchmarks/verina/run_benchmark.py --models deepseek-coder-1.3b,starcoder-7b --compare
 ```
 
-## Directory Structure
+---
+
+## Expected Directory Structure (After Implementation)
 
 ```
 benchmarks/verina/
 ├── README.md              # This file
-├── fetch_dataset.py       # Download VERINA dataset, extract MBPP subset
+├── fetch_dataset.py       # Download VERINA dataset
 ├── run_benchmark.py       # Execute benchmark pipeline
-├── variant_generator.py   # Generate input variants for counterfactual testing
-├── circuit_comparator.py  # Compare circuits for structural equivalence
+├── (variant testing)      # TBD: Generate input variants
+├── (circuit comparison)   # TBD: Compare circuits
 └── data/                  # Downloaded tasks (gitignored)
     └── mbpp/              # MBPP-specific problems
+        ├── task_001/
+        │   ├── description.txt
+        │   ├── solution.lean
+        │   ├── specification.lean
+        │   └── tests.lean
+        ├── task_002/
+        └── ...
 ```
 
-## Counterfactual Testing
+---
 
-To verify that circuit extraction captures true computational semantics (not surface patterns):
-
-1. Take an MBPP problem (e.g., "calculate average of a list")
-2. Generate variants:
-   - Rename variables: `numbers` → `values`
-   - Reorder parameters: `(a, b)` → `(b, a)`
-   - Change formatting: whitespace, comments
-3. Have model solve each variant
-4. Extract circuits from each solution
-5. Verify circuits are structurally equivalent
-
-If circuits differ significantly for semantically identical problems, the model has shallow understanding.
-
-## Integration with circuitproofs
+## Integration with CircuitProofs
 
 ```python
+# After implementation:
 from benchmarks.verina import load_mbpp_task, verify_circuit_against_spec
 
 # Load an MBPP task with its Lean specification
@@ -84,9 +174,19 @@ circuit = extract_circuit(model, task.input)
 result = verify_circuit_against_spec(circuit, task.lean_spec)
 ```
 
+---
+
 ## References
 
 - [VERINA Paper](https://arxiv.org/abs/2505.23135)
 - [VERINA GitHub](https://github.com/sunblaze-ucb/verina)
 - [VERINA Dataset](https://huggingface.co/datasets/sunblaze-ucb/verina)
 - [Original MBPP](https://github.com/google-research/google-research/tree/master/mbpp)
+
+---
+
+## Priority
+
+This is **P0** for the Martian challenge. Without the benchmark, we cannot demonstrate ground-truth verification.
+
+See [ROADMAP.md](../../ROADMAP.md) Phase 2 for implementation timeline.

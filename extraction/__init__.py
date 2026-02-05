@@ -2,22 +2,39 @@
 Circuit Extraction Module for Certified Proof-Carrying Circuits
 
 This module provides tools for extracting sparse, interpretable circuits
-from neural networks with certified error bounds using BlockCert-style
+from neural networks with certified error bounds using BlockCert
 Lipschitz composition.
 """
 
-from .circuit_extractor import (
-    CircuitExtractor,
-    CircuitComponent,
-    ErrorBound,
-    extract_transformer_circuit,
+from extraction.blockcert import (
+    BlockIR,
+    AttentionIR,
+    MLPIR,
+    NormIR,
+    TraceRecord,
+    TraceDataset,
+    BlockInterpreter,
+    BlockCertifier,
+    CertificationMetrics,
+    Certificate,
+    generate_certificate,
 )
 
 __all__ = [
-    'CircuitExtractor',
-    'CircuitComponent',
-    'ErrorBound',
-    'extract_transformer_circuit',
+    # IR
+    'BlockIR',
+    'AttentionIR',
+    'MLPIR',
+    'NormIR',
+    # Trace data
+    'TraceRecord',
+    'TraceDataset',
+    # Components
+    'BlockInterpreter',
+    'BlockCertifier',
+    'CertificationMetrics',
+    'Certificate',
+    'generate_certificate',
 ]
 
-__version__ = '1.0.0'
+__version__ = '1.1.0'

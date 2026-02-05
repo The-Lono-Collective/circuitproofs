@@ -5,6 +5,11 @@
 torch>=2.0.0
 numpy>=1.24.0
 
+# BlockCert certification (required for certified Lipschitz bounds)
+# Installing from git for torch 2.x compatibility
+# Pinned to specific commit for supply chain security (2025-02-05)
+auto_LiRPA @ git+https://github.com/Verified-Intelligence/auto_LiRPA.git@ca767f1d8c0a6b125a292ba165adb2319bbaf615
+
 # Optional: For working with HuggingFace models
 transformers>=4.30.0
 

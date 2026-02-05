@@ -1,6 +1,5 @@
 import FormalVerifML.base.smt_integration
 import FormalVerifML.base.large_scale_models
-import FormalVerifML.base.vision_models
 
 namespace FormalVerifML
 
