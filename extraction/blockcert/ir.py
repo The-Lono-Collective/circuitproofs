@@ -18,6 +18,16 @@ import numpy as np
 import hashlib
 
 
+def _encode_string(s: str) -> np.ndarray:
+    """Encode string as uint8 array to avoid pickle for security."""
+    return np.array(list(s.encode("utf-8")), dtype=np.uint8)
+
+
+def _decode_string(arr: np.ndarray) -> str:
+    """Decode uint8 array back to string."""
+    return bytes(arr.tolist()).decode("utf-8")
+
+
 @dataclass
 class NormIR:
     """Intermediate representation for normalization layers."""
@@ -30,7 +40,7 @@ class NormIR:
     def save(self, path: Path) -> str:
         """Save to .npz and return SHA-256 hash."""
         data = {
-            "norm_type": self.norm_type,
+            "norm_type": _encode_string(self.norm_type),
             "weight": self.weight,
             "eps": np.array([self.eps]),
         }
@@ -43,9 +53,9 @@ class NormIR:
     @classmethod
     def load(cls, path: Path) -> "NormIR":
         """Load from .npz file."""
-        data = np.load(path, allow_pickle=True)
+        data = np.load(path, allow_pickle=False)
         return cls(
-            norm_type=str(data["norm_type"]),
+            norm_type=_decode_string(data["norm_type"]),
             weight=data["weight"],
             bias=data.get("bias"),
             eps=float(data["eps"][0]),
@@ -180,7 +190,7 @@ class AttentionIR:
     @classmethod
     def load(cls, path: Path) -> "AttentionIR":
         """Load from .npz file."""
-        data = np.load(path, allow_pickle=True)
+        data = np.load(path, allow_pickle=False)
         return cls(
             W_Q=data["W_Q"],
             W_K=data["W_K"],
@@ -286,7 +296,7 @@ class MLPIR:
             "W_2": self.W_2,
             "mask_1": self.mask_1,
             "mask_2": self.mask_2,
-            "activation": self.activation,
+            "activation": _encode_string(self.activation),
         }
 
         # Add optional components
@@ -304,7 +314,7 @@ class MLPIR:
     @classmethod
     def load(cls, path: Path) -> "MLPIR":
         """Load from .npz file."""
-        data = np.load(path, allow_pickle=True)
+        data = np.load(path, allow_pickle=False)
         return cls(
             W_1=data["W_1"],
             W_2=data["W_2"],
@@ -315,7 +325,7 @@ class MLPIR:
             mask_1=data["mask_1"],
             mask_2=data["mask_2"],
             mask_gate=data.get("mask_gate"),
-            activation=str(data["activation"]),
+            activation=_decode_string(data["activation"]),
         )
 
     @staticmethod
@@ -443,13 +453,13 @@ class BlockIR:
         causal_mask = None
         mask_path = output_dir / f"block_{block_idx}_causal_mask.npz"
         if mask_path.exists():
-            causal_mask = np.load(mask_path)["causal_mask"]
+            causal_mask = np.load(mask_path, allow_pickle=False)["causal_mask"]
 
-        # Load metadata
+        # Load metadata (only numeric values supported for security)
         metadata = {}
         meta_path = output_dir / f"block_{block_idx}_metadata.npz"
         if meta_path.exists():
-            meta_data = np.load(meta_path, allow_pickle=True)
+            meta_data = np.load(meta_path, allow_pickle=False)
             metadata = {k: v.item() if v.size == 1 else v
                        for k, v in meta_data.items() if k != "block_idx"}
 
@@ -537,27 +547,29 @@ class TraceDataset:
             if record.attention_weights is not None:
                 data[f"attn_weights_{i}"] = record.attention_weights
             if record.prompt_id is not None:
-                data[f"prompt_id_{i}"] = record.prompt_id
+                data[f"prompt_id_{i}"] = _encode_string(record.prompt_id)
 
         np.savez(path, **data)
 
     @classmethod
     def load(cls, path: Path) -> "TraceDataset":
         """Load dataset from .npz file."""
-        data = np.load(path, allow_pickle=True)
+        data = np.load(path, allow_pickle=False)
         block_idx = int(data["block_idx"])
         num_records = int(data["num_records"])
 
         dataset = cls(block_idx=block_idx)
 
         for i in range(num_records):
+            prompt_id_arr = data.get(f"prompt_id_{i}")
+            prompt_id = _decode_string(prompt_id_arr) if prompt_id_arr is not None else None
             record = TraceRecord(
                 block_idx=block_idx,
                 input_activations=data[f"input_{i}"],
                 output_activations=data[f"output_{i}"],
                 attention_mask=data.get(f"attn_mask_{i}"),
                 attention_weights=data.get(f"attn_weights_{i}"),
-                prompt_id=data.get(f"prompt_id_{i}"),
+                prompt_id=prompt_id,
             )
             dataset.add_record(record)
 
