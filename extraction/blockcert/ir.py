@@ -28,6 +28,26 @@ def _decode_string(arr: np.ndarray) -> str:
     return bytes(arr.tolist()).decode("utf-8")
 
 
+# Maximum block index to prevent resource exhaustion and path issues
+MAX_BLOCK_IDX = 10000
+
+
+def _validate_block_idx(block_idx: int) -> None:
+    """
+    Validate block_idx is a non-negative integer within bounds.
+
+    Raises:
+        TypeError: If block_idx is not an integer.
+        ValueError: If block_idx is negative or exceeds MAX_BLOCK_IDX.
+    """
+    if not isinstance(block_idx, int) or isinstance(block_idx, bool):
+        raise TypeError(f"block_idx must be an integer, got {type(block_idx).__name__}")
+    if block_idx < 0:
+        raise ValueError(f"block_idx must be non-negative, got {block_idx}")
+    if block_idx > MAX_BLOCK_IDX:
+        raise ValueError(f"block_idx must not exceed {MAX_BLOCK_IDX}, got {block_idx}")
+
+
 @dataclass
 class NormIR:
     """Intermediate representation for normalization layers."""
@@ -357,6 +377,10 @@ class BlockIR:
     # Metadata
     metadata: Dict[str, Any] = field(default_factory=dict)
 
+    def __post_init__(self):
+        """Validate block_idx to prevent directory traversal attacks."""
+        _validate_block_idx(self.block_idx)
+
     def compute_sparsity(self) -> Dict[str, float]:
         """Compute sparsity for each component."""
         return {
@@ -420,6 +444,7 @@ class BlockIR:
     @classmethod
     def load(cls, output_dir: Path, block_idx: int) -> "BlockIR":
         """Load all components from .npz files."""
+        _validate_block_idx(block_idx)
         output_dir = Path(output_dir)
 
         # Load attention
@@ -485,6 +510,10 @@ class TraceRecord:
     attention_weights: Optional[np.ndarray] = None  # [num_heads, seq_len, seq_len]
     prompt_id: Optional[str] = None
 
+    def __post_init__(self):
+        """Validate block_idx."""
+        _validate_block_idx(self.block_idx)
+
 
 @dataclass
 class TraceDataset:
@@ -496,6 +525,10 @@ class TraceDataset:
 
     block_idx: int
     records: List[TraceRecord] = field(default_factory=list)
+
+    def __post_init__(self):
+        """Validate block_idx."""
+        _validate_block_idx(self.block_idx)
 
     def __len__(self) -> int:
         return len(self.records)
