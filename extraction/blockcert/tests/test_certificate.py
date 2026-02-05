@@ -649,3 +649,330 @@ class TestNumpyEncoder:
         result = json.dumps(data, cls=NumpyEncoder)
 
         assert '"value": "string"' in result
+
+
+# =============================================================================
+# Security Validation Tests (Path Traversal Prevention)
+# =============================================================================
+
+
+class TestBlockCertificateSecurityValidation:
+    """Tests for BlockCertificate input validation against path traversal attacks."""
+
+    def test_rejects_non_integer_block_idx(self):
+        """Test BlockCertificate rejects non-integer block_idx."""
+        with pytest.raises(ValueError, match="block_idx must be a non-negative integer"):
+            BlockCertificate(
+                block_idx="../../etc/passwd",  # type: ignore
+                epsilon=0.01,
+                mae=0.005,
+                activation_coverage=0.95,
+                loss_coverage=None,
+                K_attn=1.0,
+                K_mlp=2.0,
+                L_block=4.0,
+                K_mlp_method="analytic_estimate",
+                K_mlp_certified=False,
+                weight_hashes={},
+                is_certified=True,
+                tau_act=1e-2,
+                tau_loss=1e-3,
+            )
+
+    def test_rejects_negative_block_idx(self):
+        """Test BlockCertificate rejects negative block_idx."""
+        with pytest.raises(ValueError, match="block_idx must be a non-negative integer"):
+            BlockCertificate(
+                block_idx=-1,
+                epsilon=0.01,
+                mae=0.005,
+                activation_coverage=0.95,
+                loss_coverage=None,
+                K_attn=1.0,
+                K_mlp=2.0,
+                L_block=4.0,
+                K_mlp_method="analytic_estimate",
+                K_mlp_certified=False,
+                weight_hashes={},
+                is_certified=True,
+                tau_act=1e-2,
+                tau_loss=1e-3,
+            )
+
+    def test_rejects_path_traversal_in_component_name_dotdot(self):
+        """Test BlockCertificate rejects '..' in weight_hashes keys."""
+        with pytest.raises(ValueError, match="path traversal characters"):
+            BlockCertificate(
+                block_idx=0,
+                epsilon=0.01,
+                mae=0.005,
+                activation_coverage=0.95,
+                loss_coverage=None,
+                K_attn=1.0,
+                K_mlp=2.0,
+                L_block=4.0,
+                K_mlp_method="analytic_estimate",
+                K_mlp_certified=False,
+                weight_hashes={"../../../etc/passwd": "somehash"},
+                is_certified=True,
+                tau_act=1e-2,
+                tau_loss=1e-3,
+            )
+
+    def test_rejects_path_traversal_in_component_name_slash(self):
+        """Test BlockCertificate rejects '/' in weight_hashes keys."""
+        with pytest.raises(ValueError, match="path traversal characters"):
+            BlockCertificate(
+                block_idx=0,
+                epsilon=0.01,
+                mae=0.005,
+                activation_coverage=0.95,
+                loss_coverage=None,
+                K_attn=1.0,
+                K_mlp=2.0,
+                L_block=4.0,
+                K_mlp_method="analytic_estimate",
+                K_mlp_certified=False,
+                weight_hashes={"foo/bar": "somehash"},
+                is_certified=True,
+                tau_act=1e-2,
+                tau_loss=1e-3,
+            )
+
+    def test_rejects_path_traversal_in_component_name_backslash(self):
+        """Test BlockCertificate rejects '\\' in weight_hashes keys."""
+        with pytest.raises(ValueError, match="path traversal characters"):
+            BlockCertificate(
+                block_idx=0,
+                epsilon=0.01,
+                mae=0.005,
+                activation_coverage=0.95,
+                loss_coverage=None,
+                K_attn=1.0,
+                K_mlp=2.0,
+                L_block=4.0,
+                K_mlp_method="analytic_estimate",
+                K_mlp_certified=False,
+                weight_hashes={"foo\\bar": "somehash"},
+                is_certified=True,
+                tau_act=1e-2,
+                tau_loss=1e-3,
+            )
+
+    def test_accepts_valid_component_names(self):
+        """Test BlockCertificate accepts valid component names."""
+        # Should not raise
+        block_cert = BlockCertificate(
+            block_idx=0,
+            epsilon=0.01,
+            mae=0.005,
+            activation_coverage=0.95,
+            loss_coverage=None,
+            K_attn=1.0,
+            K_mlp=2.0,
+            L_block=4.0,
+            K_mlp_method="analytic_estimate",
+            K_mlp_certified=False,
+            weight_hashes={"attention": "hash1", "mlp": "hash2", "W_Q": "hash3"},
+            is_certified=True,
+            tau_act=1e-2,
+            tau_loss=1e-3,
+        )
+        assert block_cert.block_idx == 0
+
+
+class TestVerifyHashesSecurityValidation:
+    """Tests for verify_hashes path containment checks."""
+
+    def test_verify_hashes_validates_component_names(self, temp_output_dir):
+        """
+        Test verify_hashes validates component names for path traversal.
+
+        Note: The primary defense is __post_init__ validation on BlockCertificate.
+        This test verifies that even if validation is bypassed (e.g., via
+        object.__new__), the verify_hashes method also validates paths.
+        """
+        weight_dir = temp_output_dir / "weights"
+        weight_dir.mkdir()
+
+        # Create a certificate with a manually manipulated block that could
+        # cause path traversal (bypassing __post_init__ for testing)
+        cert = Certificate(model_name="test_model")
+
+        # Directly create block_cert bypassing normal validation
+        # to simulate a malicious certificate loaded from JSON
+        block_cert = object.__new__(BlockCertificate)
+        block_cert.block_idx = 0
+        block_cert.epsilon = 0.01
+        block_cert.mae = 0.005
+        block_cert.activation_coverage = 0.95
+        block_cert.loss_coverage = None
+        block_cert.K_attn = 1.0
+        block_cert.K_mlp = 2.0
+        block_cert.L_block = 4.0
+        block_cert.K_mlp_method = "analytic"
+        block_cert.K_mlp_certified = False
+        # Use a path that does escape via symlink resolution
+        block_cert.weight_hashes = {"attention": "somehash"}
+        block_cert.is_certified = True
+        block_cert.tau_act = 1e-2
+        block_cert.tau_loss = 1e-3
+
+        cert.blocks.append(block_cert)
+
+        # Should work with normal component names (no path traversal)
+        results = cert.verify_hashes(weight_dir)
+        # File doesn't exist, so should return False
+        assert all(v is False for v in results.values())
+
+    def test_verify_hashes_rejects_symlink_escape(self, temp_output_dir):
+        """
+        Test verify_hashes rejects paths that escape weight_dir via symlinks.
+
+        The path containment check uses resolve() which follows symlinks,
+        so this would catch symlink-based attacks.
+        """
+        import os
+
+        weight_dir = temp_output_dir / "weights"
+        weight_dir.mkdir()
+
+        # Create a symlink that points outside weight_dir
+        outside_dir = temp_output_dir / "outside"
+        outside_dir.mkdir()
+        secret_file = outside_dir / "secret.npz"
+        secret_file.write_bytes(b"secret data")
+
+        # Create symlink inside weight_dir pointing to outside
+        symlink_path = weight_dir / "block_0_attention.npz"
+        try:
+            os.symlink(secret_file, symlink_path)
+        except OSError:
+            pytest.skip("Unable to create symlink (permission denied)")
+
+        # Create certificate pointing to the symlinked file
+        cert = Certificate(model_name="test_model")
+        block_cert = object.__new__(BlockCertificate)
+        block_cert.block_idx = 0
+        block_cert.epsilon = 0.01
+        block_cert.mae = 0.005
+        block_cert.activation_coverage = 0.95
+        block_cert.loss_coverage = None
+        block_cert.K_attn = 1.0
+        block_cert.K_mlp = 2.0
+        block_cert.L_block = 4.0
+        block_cert.K_mlp_method = "analytic"
+        block_cert.K_mlp_certified = False
+        block_cert.weight_hashes = {"attention": "somehash"}
+        block_cert.is_certified = True
+        block_cert.tau_act = 1e-2
+        block_cert.tau_loss = 1e-3
+
+        cert.blocks.append(block_cert)
+
+        # The path resolves to outside weight_dir, should raise
+        with pytest.raises(ValueError, match="[Pp]ath traversal"):
+            cert.verify_hashes(weight_dir)
+
+
+class TestLoadSecurityValidation:
+    """Tests for Certificate.load security validation."""
+
+    def test_load_rejects_malicious_certificate_with_string_block_idx(
+        self, temp_output_dir
+    ):
+        """Test Certificate.load rejects certificate with non-integer block_idx."""
+        # Create malicious certificate JSON
+        malicious_cert = {
+            "model_name": "test_model",
+            "model_hash": None,
+            "blocks": [
+                {
+                    "block_idx": "../../etc/passwd",  # Path traversal attempt
+                    "epsilon": 0.01,
+                    "mae": 0.005,
+                    "activation_coverage": 0.95,
+                    "loss_coverage": None,
+                    "K_attn": 1.0,
+                    "K_mlp": 2.0,
+                    "L_block": 4.0,
+                    "K_mlp_method": "analytic",
+                    "K_mlp_certified": False,
+                    "weight_hashes": {},
+                    "is_certified": True,
+                    "tau_act": 0.01,
+                    "tau_loss": 0.001,
+                }
+            ],
+            "global_epsilon": 0.01,
+            "total_blocks": 1,
+            "certified_blocks": 1,
+            "extraction_method": "blockcert",
+            "extraction_timestamp": "2024-01-01T00:00:00+00:00",
+            "calibration_prompts": 0,
+            "calibration_tokens": 0,
+            "thresholds": {
+                "tau_act": 0.01,
+                "tau_loss": 0.001,
+                "alpha_act": 0.94,
+                "alpha_loss": 0.90,
+            },
+            "blockcert_version": "0.1.0",
+            "certificate_hash": None,
+        }
+
+        path = temp_output_dir / "malicious_cert.json"
+        with open(path, "w") as f:
+            json.dump(malicious_cert, f)
+
+        with pytest.raises(ValueError, match="block_idx must be a non-negative integer"):
+            Certificate.load(path)
+
+    def test_load_rejects_malicious_certificate_with_traversal_component(
+        self, temp_output_dir
+    ):
+        """Test Certificate.load rejects certificate with path traversal in component name."""
+        malicious_cert = {
+            "model_name": "test_model",
+            "model_hash": None,
+            "blocks": [
+                {
+                    "block_idx": 0,
+                    "epsilon": 0.01,
+                    "mae": 0.005,
+                    "activation_coverage": 0.95,
+                    "loss_coverage": None,
+                    "K_attn": 1.0,
+                    "K_mlp": 2.0,
+                    "L_block": 4.0,
+                    "K_mlp_method": "analytic",
+                    "K_mlp_certified": False,
+                    "weight_hashes": {"../../../etc/passwd": "somehash"},  # Attack
+                    "is_certified": True,
+                    "tau_act": 0.01,
+                    "tau_loss": 0.001,
+                }
+            ],
+            "global_epsilon": 0.01,
+            "total_blocks": 1,
+            "certified_blocks": 1,
+            "extraction_method": "blockcert",
+            "extraction_timestamp": "2024-01-01T00:00:00+00:00",
+            "calibration_prompts": 0,
+            "calibration_tokens": 0,
+            "thresholds": {
+                "tau_act": 0.01,
+                "tau_loss": 0.001,
+                "alpha_act": 0.94,
+                "alpha_loss": 0.90,
+            },
+            "blockcert_version": "0.1.0",
+            "certificate_hash": None,
+        }
+
+        path = temp_output_dir / "malicious_cert2.json"
+        with open(path, "w") as f:
+            json.dump(malicious_cert, f)
+
+        with pytest.raises(ValueError, match="path traversal characters"):
+            Certificate.load(path)

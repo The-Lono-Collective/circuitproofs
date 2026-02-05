@@ -19,6 +19,24 @@ import numpy as np
 from extraction.blockcert.certifier import CertificationMetrics, LipschitzBounds, compute_global_error_bound
 
 
+def _validate_path_component(value: Any, field_name: str) -> None:
+    """
+    Validate a value used in path construction contains no traversal characters.
+
+    Args:
+        value: The value to validate (will be converted to string)
+        field_name: Name of the field for error messages
+
+    Raises:
+        ValueError: If the value contains path traversal characters
+    """
+    str_val = str(value)
+    if ".." in str_val or "/" in str_val or "\\" in str_val:
+        raise ValueError(
+            f"Invalid {field_name}: contains path traversal characters: {str_val!r}"
+        )
+
+
 @dataclass
 class BlockCertificate:
     """Certificate for a single transformer block."""
@@ -47,6 +65,15 @@ class BlockCertificate:
     # Thresholds used
     tau_act: float
     tau_loss: float
+
+    def __post_init__(self) -> None:
+        """Validate fields to prevent path traversal attacks."""
+        if not isinstance(self.block_idx, int) or self.block_idx < 0:
+            raise ValueError(
+                f"block_idx must be a non-negative integer, got: {self.block_idx!r}"
+            )
+        for component in self.weight_hashes.keys():
+            _validate_path_component(component, "weight_hashes key")
 
 
 @dataclass
@@ -202,14 +229,30 @@ class Certificate:
         """
         Verify that weight file hashes match the certificate.
 
-        Returns dict mapping file names to verification status.
+        Args:
+            weight_dir: Directory containing weight files
+
+        Returns:
+            Dict mapping file names to verification status (True if hash matches)
+
+        Raises:
+            ValueError: If path traversal is detected in file paths
         """
         results = {}
+        weight_dir = Path(weight_dir).resolve()
 
         for block in self.blocks:
             for component, expected_hash in block.weight_hashes.items():
                 # Reconstruct expected file path
                 file_path = weight_dir / f"block_{block.block_idx}_{component}.npz"
+
+                # Security: verify path stays within weight_dir (prevent path traversal)
+                try:
+                    file_path.resolve().relative_to(weight_dir)
+                except ValueError:
+                    raise ValueError(
+                        f"Path traversal detected: {file_path} escapes {weight_dir}"
+                    )
 
                 if not file_path.exists():
                     results[str(file_path)] = False
