@@ -81,7 +81,7 @@ structure Circuit where
 def applySparseLinear (edges : List CircuitEdge) (bias : Array Float)
     (input : Array Float) (outputDim : Nat) : Array Float :=
   -- 1. Initialize authoritatively using outputDim
-  -- Use Array.replicate to create array of repeated values
+  -- Use Array.replicate instead of mkArray
   let initial := Array.replicate outputDim 0.0
 
   -- 2. Safely apply bias
@@ -177,7 +177,7 @@ def countCircuitEdges (circuit : Circuit) : Nat :=
 /-- Calculate circuit sparsity (1 - active_edges/total_possible_edges) -/
 def circuitSparsity (circuit : Circuit) : Float :=
   let totalEdges := countCircuitEdges circuit
-  let totalPossibleEdges : Nat := circuit.components.foldl (fun acc component =>
+  let totalPossibleEdges := circuit.components.foldl (fun acc component =>
     acc + component.inputDim * component.outputDim
   ) 0
   if totalPossibleEdges > (0 : Nat) then
@@ -188,45 +188,45 @@ def circuitSparsity (circuit : Circuit) : Float :=
 /-! ## Composition Theorems -/
 
 /--
-Axiom: The epsilon error bound is at least the sum of local errors (simplified composition).
-In BlockCert-style extraction, epsilon may be set conservatively higher than the theoretical minimum.
+Compute Lipschitz composition error bound: Σᵢ (εᵢ · ∏ⱼ₍ⱼ>ᵢ₎ Lⱼ)
+
+Uses reverse accumulation for O(N) complexity:
+- Start from the last block where tail product = 1.0
+- Work backwards, accumulating the product as we go
+- Each step: add εᵢ × current_tail_product, then multiply tail by Lᵢ
+
+This matches the BlockCert paper (Theorem 1) formula for error propagation
+through a composition of Lipschitz continuous functions.
 -/
-axiom lipschitz_composition_formula : ∀ (circuit : Circuit),
-  let localErrs := circuit.errorBound.localErrors
-  let lipschitzConsts := circuit.errorBound.lipschitzConstants
-  circuit.errorBound.epsilon ≥ (localErrs.zip lipschitzConsts).foldl (fun acc pair =>
-    acc + pair.1  -- Simplified: full version would compute product of subsequent Lipschitz constants
-  ) 0.0
+def compositionErrorBound (localErrors : List Float) (lipschitzConsts : List Float) : Float :=
+  -- Zip errors with their Lipschitz constants, then reverse for backward iteration
+  let pairs := (localErrors.zip lipschitzConsts).reverse
+  -- Fold from the end: (accumulated_bound, tail_product_so_far)
+  let (bound, _) := pairs.foldl (fun (acc, tailProd) (eps_i, L_i) =>
+    -- Add this block's contribution: εᵢ × (product of all subsequent L's)
+    -- Then update tail product to include this block's L for the next iteration
+    (acc + eps_i * tailProd, tailProd * L_i)
+  ) (0.0, 1.0)
+  bound
 
 /--
-Lipschitz composition theorem for error propagation
+Lipschitz composition theorem for error propagation.
 
-If each component has local error εᵢ and Lipschitz constant Lᵢ,
-then the global error is bounded by: ∑ᵢ (εᵢ ∏ⱼ₍ⱼ>ᵢ₎ Lⱼ)
+If each block i has local error εᵢ and Lipschitz constant Lᵢ,
+then the global error is bounded by: Σᵢ (εᵢ · ∏ⱼ₍ⱼ>ᵢ₎ Lⱼ)
+
+This accounts for how errors from earlier blocks are amplified
+by the Lipschitz constants of all subsequent blocks.
+
+Note: The certificate's epsilon field stores a pre-computed upper bound,
+so we assert it is at least as large as the computed composition bound.
 -/
 theorem lipschitz_composition_bound (circuit : Circuit) :
-  let ε := circuit.errorBound.epsilon
-  let localErrs := circuit.errorBound.localErrors
-  let lipschitzConsts := circuit.errorBound.lipschitzConstants
-  ε ≥ (localErrs.zip lipschitzConsts).foldl (fun acc pair =>
-    acc + pair.1  -- Simplified: full version would compute product of subsequent Lipschitz constants
-  ) 0.0 := by
-  exact lipschitz_composition_formula circuit
-
-/--
-Axiom: Property transfer through small perturbation.
-If the circuit satisfies a property, the model is close to the circuit,
-and the error is smaller than the property's Lipschitz continuity threshold,
-then the property transfers to the model.
--/
-axiom property_transfer_axiom : ∀ (circuit : Circuit)
-    (originalModel : Array Float → Array Float)
-    (property : Array Float → Prop)
-    (propertyLipschitz : Float),
-  circuitSatisfiesProperty circuit property 1.0 →
-  circuitApproximatesModel circuit originalModel →
-  circuit.errorBound.epsilon < propertyLipschitz →
-  ∀ x, property (originalModel x)
+  circuit.errorBound.epsilon ≥
+    compositionErrorBound
+      circuit.errorBound.localErrors
+      circuit.errorBound.lipschitzConstants := by
+  sorry  -- Proof requires showing the certificate was computed correctly
 
 /--
 If the circuit satisfies a property and the error bound is small,
@@ -240,8 +240,7 @@ theorem property_transfer (circuit : Circuit)
   circuitApproximatesModel circuit originalModel →
   circuit.errorBound.epsilon < propertyLipschitz →
   (∀ x, property (originalModel x)) := by
-  intro h_circuit h_approx h_epsilon
-  exact property_transfer_axiom circuit originalModel property propertyLipschitz h_circuit h_approx h_epsilon
+  sorry  -- Proof would show property transfers through small perturbation
 
 /-! ## Certificate Verification -/
 
@@ -310,5 +309,26 @@ def simpleLinearCircuit : Circuit :=
 #eval! evalCircuit simpleLinearCircuit #[1.0, 2.0]
 #eval! circuitSparsity simpleLinearCircuit
 #eval! circuitNumParameters simpleLinearCircuit
+
+/-! ## Tests for compositionErrorBound -/
+
+-- Test case: 3 blocks, each with ε=0.01 and L=2.0
+-- Block 0: 0.01 * (2*2) = 0.04
+-- Block 1: 0.01 * 2 = 0.02
+-- Block 2: 0.01 * 1 = 0.01
+-- Total: 0.07
+#eval! compositionErrorBound [0.01, 0.01, 0.01] [2.0, 2.0, 2.0]
+
+-- Single block: no subsequent blocks, tail product = 1.0
+-- Expected: 0.01
+#eval! compositionErrorBound [0.01] [2.0]
+
+-- Two blocks with different Lipschitz constants
+-- Block 0: 0.01 * 4 = 0.04, Block 1: 0.02 * 1 = 0.02
+-- Expected: 0.06
+#eval! compositionErrorBound [0.01, 0.02] [2.0, 4.0]
+
+-- Empty lists: should return 0.0
+#eval! compositionErrorBound [] []
 
 end FormalVerifML
